@@ -9,3 +9,13 @@ regenerarlos.
 | `depto_2d_limpio.dxf` | Departamento típico de Lima, 2 dormitorios (~65 m²), en metros, capas bien nombradas. |
 | `depto_2d_desordenado.dxf` | Mismo departamento en centímetros, con huecos de milímetros, líneas duplicadas, capa mal nombrada, columnas con hatch, ventana sin bloque, mampara, vano libre, textos de área/NPT, cotas, mobiliario y marco con rótulo. |
 | `planta_2_unidades.dxf` | Dos departamentos lado a lado (prueba de `multiple_units_detected` y `region`). |
+| `expected.json` | Verdad de terreno para los tests: área útil por ambiente, vanos por tipo, bbox de cada unidad. |
+
+Regenerar (desde `pipeline/`):
+
+```bash
+uv run python scripts/generate_samples.py
+```
+
+El test `test_committed_expected_json_is_up_to_date` falla si el generador cambia y no se
+regeneraron las muestras.

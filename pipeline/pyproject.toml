@@ -30,4 +30,5 @@ packages = ["src/planos"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["scripts"]
 addopts = "-ra"
