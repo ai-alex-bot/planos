@@ -41,7 +41,7 @@ class Metadata(BaseModel):
     source_file: str
     source_sha256: str
     dxf_version: str
-    source_units: Literal["m", "cm", "mm", "unknown"]
+    source_units: Literal["m", "cm", "mm", "in", "ft", "unknown"]
     units_origin: Literal["insunits", "config", "heuristic"]
     scale_to_m: float
     region: BBox2 | None                   # recorte aplicado (en metros), si hubo
@@ -116,6 +116,8 @@ class Space(BaseModel):
 | `entity_unsupported` | warning | Entidad en capa de muros que no se sabe procesar (SPLINE, etc.). |
 | `xref_unresolved` | **error** | Hay XREF no resuelto (falta geometría). |
 | `multiple_units_detected` | warning | Clusters de muros desconectados; se listan con su bbox. Usar `region`. |
+| `region_empty` | **error** | `region` no contiene geometría de muros. |
+| `no_walls` | **error** | No se encontró ninguna entidad en capas de muros. |
 | `duplicate_removed` | info | Segmentos duplicados/superpuestos fusionados. |
 | `gap_closed` | info | Extremos unidos dentro de `gap_close`. |
 | `unpaired_wall_line` | warning | Línea de muro que no se pudo emparejar ni cerrar. |
@@ -166,6 +168,8 @@ tolerances:
   wall_thickness_max: 0.40
   gap_opening_min: 0.40
   gap_opening_max: 4.00
+  cluster_gap: 0.50          # distancia máx. entre muros de una misma unidad
+  arc_flatten: 0.01          # error máx. al discretizar arcos
   min_room_area: 1.5
   max_room_area: 60.0
   area_mismatch_pct: 5.0

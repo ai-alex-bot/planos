@@ -7,7 +7,7 @@ perfectamente cerrado, y todo lo que no se puede resolver se reporta como issue 
 ## 0. Unidades y recorte
 
 1. Si el YAML define `units`, manda. Si no, se lee `$INSUNITS`.
-2. Si `$INSUNITS` es 0/ausente, se infiere a partir de la extensión de **las entidades de muros
+2. Si `$INSUNITS` es 0/ausente (o da un tamaño absurdo, p. ej. un depto de 1 km), se infiere a partir de la extensión de **las entidades de muros
    mapeadas** (no de todo el dibujo, para no confundirse con marcos, rótulos o XREFs): lado mayor
    ~5–50 → m, ~500–5000 → cm, ~5000–50000 → mm. Issue `units_assumed`.
 3. Si el YAML define `region` (en unidades del dibujo), se descarta todo lo que caiga fuera.
@@ -38,8 +38,9 @@ perfectamente cerrado, y todo lo que no se puede resolver se reporta como issue 
 3. **Respaldo**: `unary_union` + `polygonize` sobre los segmentos sin par; se aceptan las caras
    delgadas (desaparecen con `buffer(-wall_thickness_max/2)`). Lo que sobra → `unpaired_wall_line`.
 4. Unión + cierre morfológico (`buffer(+ε).buffer(-ε)`) para soldar encuentros en L y T.
-5. **Clusters**: componentes conexas de la máscara (con tolerancia `gap_opening_max` para no separar
-   por vanos). Si hay más de una significativa → `multiple_units_detected` con el bbox de cada una.
+5. **Clusters**: componentes conexas de la geometría de muros con tolerancia `cluster_gap` (0.50 m;
+   los vanos no separan una unidad porque sus muros la rodean). Si hay más de una significativa →
+   `multiple_units_detected` con el bbox de cada una.
 
 ## 4. Vanos
 

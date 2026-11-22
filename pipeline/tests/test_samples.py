@@ -11,7 +11,7 @@ import pytest
 
 import generate_samples as gs
 
-SAMPLES_DIR = Path(__file__).resolve().parents[2] / "samples"
+from conftest import SAMPLES_DIR
 
 
 @pytest.fixture(scope="module")
