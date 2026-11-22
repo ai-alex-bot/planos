@@ -1,0 +1,4 @@
+# Mapeo para depto_2d_limpio.dxf
+# Las capas usan nombres comunes (MUROS, PUERTAS, VENTANAS, TEXTOS, COLUMNAS), así que
+# las heurísticas por defecto bastan; solo dejamos explícito lo esencial.
+units: m

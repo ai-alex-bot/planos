@@ -1,0 +1,7 @@
+# Mapeo para depto_2d_desordenado.dxf
+# - Dibujado en centímetros y sin $INSUNITS: forzamos las unidades.
+# - Los tabiques están en una capa mal nombrada (TAB-01): la agregamos a muros.
+#   Al definir "walls" se reemplaza la heurística de muros, por eso listamos ambas capas.
+units: cm
+layers:
+  walls: [MUROS, TAB-01]
