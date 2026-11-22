@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# Node
+node_modules/
+viewer/dist/
+*.local
+
+# Pipeline outputs
+out/
+pipeline/out/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.claude/settings.local.json
