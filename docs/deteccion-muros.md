@@ -38,9 +38,13 @@ perfectamente cerrado, y todo lo que no se puede resolver se reporta como issue 
 3. **Respaldo**: `unary_union` + `polygonize` sobre los segmentos sin par; se aceptan las caras
    delgadas (desaparecen con `buffer(-wall_thickness_max/2)`). Lo que sobra → `unpaired_wall_line`.
 4. Unión + cierre morfológico (`buffer(+ε).buffer(-ε)`) para soldar encuentros en L y T.
-5. **Clusters**: componentes conexas de la geometría de muros con tolerancia `cluster_gap` (0.50 m;
-   los vanos no separan una unidad porque sus muros la rodean). Si hay más de una significativa →
-   `multiple_units_detected` con el bbox de cada una.
+5. **Clusters** (`geometry/clusters.py`, también en `planos inspect`): componentes conexas de muros y
+   estructura con tolerancia `cluster_gap` (0.50 m). Los bloques de puertas/ventanas y las líneas de
+   ventana actúan de **puente** sobre sus huecos. Un grupo cuyo bbox cae ≥ 80 % dentro del bbox de otro
+   mayor (columna aislada, muro cortado por un vano sin bloque) se fusiona con él. Grupos < 2 m se
+   consideran sueltos. Si quedan 2+ grupos → `multiple_units_detected` con el bbox de cada uno, listo
+   para copiar en `region`. Limitación: dos unidades que comparten muro medianero se ven como una sola;
+   en ese caso hay que usar `region` a mano.
 
 ## 4. Vanos
 
