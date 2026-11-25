@@ -60,7 +60,7 @@ class Wall(BaseModel):
     thickness: float
     height: float
     footprint: Polygon2                    # polígono real en planta
-    source: Literal["line_pair", "closed_polyline", "hatch", "structure", "opening_fill"]
+    source: Literal["line_pair", "closed_polyline", "hatch", "polygonized", "structure", "opening_fill"]
     adjacent_room_ids: tuple[str | None, str | None]   # (lado izquierdo, lado derecho) mirando start→end
     source_handles: list[str]              # handles DXF para trazabilidad
 
@@ -166,6 +166,7 @@ tolerances:
   angle_deg: 1.0
   wall_thickness_min: 0.07
   wall_thickness_max: 0.40
+  min_wall_length: 0.10       # traslapes menores no son muro (p. ej. jambas)
   gap_opening_min: 0.40
   gap_opening_max: 4.00
   cluster_gap: 0.50          # distancia máx. entre muros de una misma unidad

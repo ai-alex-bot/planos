@@ -100,6 +100,7 @@ class Tolerances(_Strict):
     angle_deg: float = Field(default=1.0, gt=0)
     wall_thickness_min: float = Field(default=0.07, gt=0)
     wall_thickness_max: float = Field(default=0.40, gt=0)
+    min_wall_length: float = Field(default=0.10, gt=0)  # shorter overlaps are not walls (e.g. jambs)
     gap_opening_min: float = Field(default=0.40, gt=0)
     gap_opening_max: float = Field(default=4.00, gt=0)
     cluster_gap: float = Field(default=0.50, gt=0)

@@ -37,8 +37,14 @@ perfectamente cerrado, y todo lo que no se puede resolver se reporta como issue 
    espesor. No requiere tapas en los extremos. Si una línea admite varios pares, gana el más cercano.
 3. **Respaldo**: `unary_union` + `polygonize` sobre los segmentos sin par; se aceptan las caras
    delgadas (desaparecen con `buffer(-wall_thickness_max/2)`). Lo que sobra → `unpaired_wall_line`.
-4. Unión + cierre morfológico (`buffer(+ε).buffer(-ε)`) para soldar encuentros en L y T.
-5. **Clusters** (`geometry/clusters.py`, también en `planos inspect`): componentes conexas de muros y
+4. **Tramos colineales** del mismo muro (mismo eje y espesor) separados menos que `gap_opening_min`
+   se unen en un solo muro (p. ej. un muro exterior partido por los encuentros en T).
+5. **Encuentros**: emparejar caras deja sin cubrir el cuadrado de cada esquina en L y el núcleo de las
+   T/X, y un cierre morfológico **no** rellena una esquina convexa. Por eso cada extremo de muro que
+   llega a otro muro no paralelo se prolonga hasta la cara opuesta de ese muro (solo se alarga).
+6. Unión + cierre morfológico (`buffer(+r).buffer(-r)`, `r < gap_opening_min/2`) para muescas
+   pequeñas sin tapar vanos reales.
+7. **Clusters** (`geometry/clusters.py`, también en `planos inspect`): componentes conexas de muros y
    estructura con tolerancia `cluster_gap` (0.50 m). Los bloques de puertas/ventanas y las líneas de
    ventana actúan de **puente** sobre sus huecos. Un grupo cuyo bbox cae ≥ 80 % dentro del bbox de otro
    mayor (columna aislada, muro cortado por un vano sin bloque) se fusiona con él. Grupos < 2 m se
@@ -49,7 +55,9 @@ perfectamente cerrado, y todo lo que no se puede resolver se reporta como issue 
 ## 4. Vanos
 
 Todo vano, con bloque o inferido, se rellena con un rectángulo `opening_fill` (ancho × espesor del
-muro) para cerrar la máscara antes de buscar ambientes.
+muro) para cerrar la máscara antes de buscar ambientes. El relleno se alarga unos milímetros a cada
+lado para **solapar** con el muro: si solo lo toca, el error de punto flotante deja grietas de ancho
+cero que conectan todos los ambientes en uno.
 
 ### 4.1 Con bloque
 
