@@ -93,7 +93,7 @@ reconocimiento de planos en PDF o imagen.
 | 8 | Ambientes, textos, áreas, `adjacent_room_ids` | ✅ |
 | 9 | `planos convert` → `space.json` + `report.md` | ✅ |
 | 10 | Generación GLB (mallas desde máscara, booleanos, extras) | ✅ |
-| 11 | Tests de equivalencia limpio vs desordenado | ⏳ siguiente |
-| 12 | Visor: base, carga de GLB, HDRI local | |
+| 11 | Tests de equivalencia limpio vs desordenado | ✅ |
+| 12 | Visor: base, carga de GLB, HDRI local | ⏳ siguiente |
 | 13 | Visor: modos órbita/planta/caminata y celular | |
 | 14 | README completo | |
