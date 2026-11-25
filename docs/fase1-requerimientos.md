@@ -91,8 +91,8 @@ reconocimiento de planos en PDF o imagen.
 | 6 | Esquema pydantic + detección de muros (limpieza, pares, máscara) | ✅ |
 | 7 | Vanos (bloques e inferidos) | ✅ |
 | 8 | Ambientes, textos, áreas, `adjacent_room_ids` | ✅ |
-| 9 | `planos convert` → `space.json` + `report.md` | ⏳ siguiente |
-| 10 | Generación GLB (mallas desde máscara, booleanos, extras) | |
+| 9 | `planos convert` → `space.json` + `report.md` | ✅ |
+| 10 | Generación GLB (mallas desde máscara, booleanos, extras) | ⏳ siguiente |
 | 11 | Tests de equivalencia limpio vs desordenado | |
 | 12 | Visor: base, carga de GLB, HDRI local | |
 | 13 | Visor: modos órbita/planta/caminata y celular | |

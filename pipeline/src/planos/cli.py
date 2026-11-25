@@ -143,5 +143,47 @@ def inspect(
             console.print(f"  [{SEVERITY_STYLE[issue.severity]}]{issue.severity.upper()}[/] {issue.code}: {issue.message}")
 
 
+@app.command()
+def convert(
+    dxf: Path = typer.Argument(..., help="Archivo DXF."),
+    config: Path | None = typer.Option(None, "--config", "-c", help="YAML de mapeo (opcional)."),
+    out: Path = typer.Option(Path("out"), "--out", "-o", help="Carpeta de salida."),
+) -> None:
+    """Genera space.json y report.md. Sale con código 1 si hay errores."""
+    from planos.pipeline import build_space
+    from planos.report import render_report
+
+    _check_dxf(dxf)
+    cfg = _load_cfg(config)
+    result = build_space(dxf, cfg)
+    space = result.space
+
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "space.json").write_text(space.model_dump_json(indent=2), encoding="utf-8")
+    (out / "report.md").write_text(render_report(space), encoding="utf-8")
+
+    m = space.metadata
+    console.rule(f"[bold]{dxf.name}")
+    console.print(
+        f"{sum(1 for w in space.walls if w.source not in ('opening_fill', 'structure'))} muros · "
+        f"{sum(1 for w in space.walls if w.source == 'structure')} columnas · {len(space.openings)} vanos · "
+        f"{len(space.rooms)} ambientes · área techada (calc.) {m.gross_area_m2:.2f} m² · "
+        f"área libre {m.open_area_m2:.2f} m²"
+    )
+    for r in space.rooms:
+        console.print(f"  {r.name or '(sin nombre)':<20} {r.net_area_m2:7.2f} m²")
+    counts = {s: sum(1 for i in space.issues if i.severity == s) for s in ("error", "warning", "info")}
+    console.print(
+        f"Avisos: [bold red]{counts['error']} errores[/], [yellow]{counts['warning']} advertencias[/], "
+        f"[dim]{counts['info']} info[/] — detalle en {out / 'report.md'}"
+    )
+    for issue in space.issues:
+        if issue.severity != "info":
+            console.print(f"  [{SEVERITY_STYLE[issue.severity]}]{issue.severity.upper()}[/] {issue.code}: {issue.message}")
+    console.print(f"Salida: {out / 'space.json'}, {out / 'report.md'}")
+    if result.issues.has_errors:
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()
