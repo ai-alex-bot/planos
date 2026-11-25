@@ -1,0 +1,182 @@
+:root {
+  --bg: #f3f1ec;
+  --card: rgba(255, 255, 255, 0.86);
+  --ink: #23211d;
+  --muted: #6f6a60;
+  --accent: #c9792b;
+  --radius: 14px;
+  --gap: 12px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root,
+.app {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.canvas {
+  position: absolute !important;
+  inset: 0;
+  touch-action: none; /* gestures go to the 3D view, not page scroll/zoom */
+}
+
+.card {
+  background: var(--card);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+}
+
+.muted {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.85em;
+}
+
+.hud-top {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + var(--gap));
+  left: calc(env(safe-area-inset-left) + var(--gap));
+  right: calc(env(safe-area-inset-right) + var(--gap));
+  display: flex;
+  gap: var(--gap);
+  align-items: flex-start;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.hud-top > * {
+  pointer-events: auto;
+}
+
+.unit {
+  padding: 10px 14px;
+  max-width: 70vw;
+}
+
+.unit-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unit-area {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.btn {
+  appearance: none;
+  border: 0;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  min-height: 44px; /* comfortable touch target */
+  padding: 0 16px;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn.active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.room {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + var(--gap) + 64px);
+  min-width: min(320px, calc(100vw - 2 * var(--gap)));
+  padding: 14px 44px 14px 18px;
+}
+
+.room-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.room-area {
+  font-size: 1.05rem;
+  margin-top: 2px;
+}
+
+.tag {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e9f2e5;
+  color: #3d6b2f;
+  font-size: 0.8rem;
+}
+
+.close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  font-size: 1.5rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.hint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + var(--gap) + 64px);
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(35, 33, 29, 0.6);
+  color: #fff;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: var(--gap);
+  border: 3px dashed var(--accent);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.75);
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 24px;
+}
