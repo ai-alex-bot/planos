@@ -89,8 +89,8 @@ reconocimiento de planos en PDF o imagen.
 | 4 | Lector DXF: unidades, region, bloques, XREF | ✅ |
 | 5 | Clusters de unidades + `planos inspect` | ✅ |
 | 6 | Esquema pydantic + detección de muros (limpieza, pares, máscara) | ✅ |
-| 7 | Vanos (bloques e inferidos) | ⏳ siguiente |
-| 8 | Ambientes, textos, áreas, `adjacent_room_ids` | |
+| 7 | Vanos (bloques e inferidos) | ✅ |
+| 8 | Ambientes, textos, áreas, `adjacent_room_ids` | ⏳ siguiente |
 | 9 | `planos convert` → `space.json` + `report.md` | |
 | 10 | Generación GLB (mallas desde máscara, booleanos, extras) | |
 | 11 | Tests de equivalencia limpio vs desordenado | |

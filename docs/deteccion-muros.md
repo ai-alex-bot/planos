@@ -63,16 +63,24 @@ cero que conectan todos los ambientes en uno.
 
 - INSERT en capas `doors`/`windows`, o con nombre de bloque que calce `blocks.*`.
 - `blocks.glass_doors` (`MAMP*`) → `kind = "glass_door"` (sill 0.00, head 2.10).
-- Se asocia al muro más cercano cuya dirección coincide con la rotación del bloque.
-- Ancho: el hueco real en el muro junto al bloque (`wall_gap`); si no se encuentra, la extensión del
-  bloque proyectada sobre el eje del muro (`block_extent`).
+- Se asocia al hueco paralelo (±10°) con el que se superpone su extensión proyectada; el ancho y
+  el centro salen del hueco real (`wall_gap`).
+- Si no hay hueco (muro dibujado continuo bajo el bloque), va al muro paralelo más cercano y el
+  ancho es la extensión del bloque proyectada sobre el eje del muro (`block_extent`).
 - Sin muro compatible → `opening_without_wall`.
+
+### 4.0 Cómo se encuentran los huecos
+
+Desde cada **extremo libre** de muro (uno que no fue prolongado a un encuentro y no toca otro muro)
+se lanza un rayo por el eje del muro. Si choca con la máscara (otro muro o una columna) a una
+distancia entre `gap_opening_min` (0.40) y `gap_opening_max` (4.00), eso es un hueco. Cubre tanto el
+muro interrumpido (dos extremos colineales) como la puerta junto a una esquina o una columna. El
+mismo hueco visto desde ambos lados se cuenta una vez.
 
 ### 4.2 Sin bloque (huecos inferidos)
 
-Si no se cierran, los ambientes "se escapan" al exterior. Se detectan como dos extremos de muro
-**colineales sobre el mismo eje**, separados entre `gap_opening_min` (0.40) y `gap_opening_max` (4.00),
-sin bloque asociado:
+Si no se cierran, los ambientes "se escapan" al exterior. Son los huecos de 4.0 que no quedaron
+asociados a ningún bloque:
 
 | Situación | Resultado |
 |---|---|

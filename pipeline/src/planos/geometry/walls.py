@@ -13,7 +13,7 @@ Collinear pieces of the same wall (split by T junctions) are merged, and a morph
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from shapely import STRtree
 from shapely.geometry import LineString, MultiPolygon, Polygon
@@ -34,8 +34,9 @@ class WallCandidate:
     end: P
     thickness: float
     footprint: Polygon
-    source: str  # line_pair | closed_polyline | hatch | polygonized | structure
+    source: str  # line_pair | closed_polyline | hatch | polygonized | structure | opening_fill
     handles: tuple[str, ...] = ()
+    joined: list[bool] = field(default_factory=lambda: [False, False])  # start/end extended into a junction
 
     @property
     def length(self) -> float:
@@ -257,6 +258,7 @@ def _complete_junctions(walls: list[WallCandidate], tol: Tolerances) -> None:
                 best_t = max(best_t, target)
             if best_t > 0:
                 new_ends[id(w)][k] = (e[0] + d[0] * best_t, e[1] + d[1] * best_t)
+                w.joined[k] = True
     for w in pairs:
         a, b = new_ends[id(w)]
         if (a, b) != (w.start, w.end):
