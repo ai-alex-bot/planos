@@ -45,7 +45,7 @@ def _check_references(space: Space) -> None:
 def test_convert_samples(tmp_path: Path, samples_dir: Path, expected: dict, sample: str) -> None:
     code, space, report = _convert(samples_dir / f"{sample}.dxf", tmp_path, samples_dir / f"{sample}.yaml")
     assert code == 0
-    assert space is not None
+    assert space is not None and (tmp_path / "model.glb").stat().st_size > 10_000
     _check_references(space)
     assert space.units == "m" and space.schema_version == "1.0"
     assert sorted((r.name, round(r.net_area_m2, 2)) for r in space.rooms) == sorted(

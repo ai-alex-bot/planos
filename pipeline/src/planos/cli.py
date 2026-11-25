@@ -149,7 +149,8 @@ def convert(
     config: Path | None = typer.Option(None, "--config", "-c", help="YAML de mapeo (opcional)."),
     out: Path = typer.Option(Path("out"), "--out", "-o", help="Carpeta de salida."),
 ) -> None:
-    """Genera space.json y report.md. Sale con código 1 si hay errores."""
+    """Genera space.json, model.glb y report.md. Sale con código 1 si hay errores."""
+    from planos.model3d.build import build_glb
     from planos.pipeline import build_space
     from planos.report import render_report
 
@@ -161,6 +162,8 @@ def convert(
     out.mkdir(parents=True, exist_ok=True)
     (out / "space.json").write_text(space.model_dump_json(indent=2), encoding="utf-8")
     (out / "report.md").write_text(render_report(space), encoding="utf-8")
+    glb, _ = build_glb(space)
+    (out / "model.glb").write_bytes(glb)
 
     m = space.metadata
     console.rule(f"[bold]{dxf.name}")
@@ -180,7 +183,7 @@ def convert(
     for issue in space.issues:
         if issue.severity != "info":
             console.print(f"  [{SEVERITY_STYLE[issue.severity]}]{issue.severity.upper()}[/] {issue.code}: {issue.message}")
-    console.print(f"Salida: {out / 'space.json'}, {out / 'report.md'}")
+    console.print(f"Salida: {out / 'space.json'}, {out / 'model.glb'}, {out / 'report.md'}")
     if result.issues.has_errors:
         raise typer.Exit(1)
 

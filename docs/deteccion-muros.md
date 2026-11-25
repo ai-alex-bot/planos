@@ -126,16 +126,25 @@ asociados a ningún bloque:
   laterales de la terraza). Los muros entre un ambiente techado y uno sin techar cuentan completos.
 - Si hay `declared` en el YAML y la diferencia supera `area_mismatch_pct` → `area_mismatch`.
 
-## 7. Geometría 3D
+## 7. Geometría 3D (`model3d/build.py`, JSON → GLB)
 
-- Las mallas de muros se generan **a partir de la máscara unida** (no muro por muro) para evitar
-  caras superpuestas y z-fighting en los encuentros. La máscara se parte en piezas por `Wall` sin
-  superposición (cada pieza es la intersección de la máscara con la celda de su muro).
-- Extrusión a `floor_to_ceiling`; cada vano resta (manifold3d) una caja
-  `ancho × (espesor + margen) × (sill..head)`: deja dintel sobre puertas/pasos y alféizar + dintel en
-  ventanas.
-- Un piso por ambiente: `floor_<slug>`; extras glTF: `room_id`, `name`, `net_area_m2`, `is_roofed`.
-- Nodos: `wall_001`, `floor_sala_comedor`, `opening_door_01` (vacío con posición). Escena con extras
-  de la unidad (áreas declaradas/calculadas).
-- Se verifica que trimesh escriba los extras por nodo; si no, se post-procesa con pygltflib. Un test
-  relee los extras.
+- Se parte de `space.json` (no del DXF). Las huellas de todos los muros (incluidos los
+  `opening_fill`) se cortan en **piezas disjuntas**, una por muro (primero los muros reales, al final
+  los rellenos): no hay caras superpuestas ni z-fighting en los encuentros.
+- Cada pieza se extruye a `floor_to_ceiling` con manifold3d y se le restan las cajas de los vanos
+  (`ancho × (espesor + 2·opening_cut_margin) × (sill..head)`): queda el dintel sobre puertas/pasos y
+  alféizar + dintel en ventanas. Los cortadores sobresalen 1 mm a lo largo para evitar caras coplanares.
+- Un piso por ambiente: `floor_<slug>` (UV en metros, para texturas en la Fase 2). Techo opcional
+  (`geometry.ceiling`), solo en ambientes techados: `ceiling_<slug>`.
+- Nodos vacíos `opening_<tipo>_NN` en la base del vano, rotados con su muro.
+- Materiales placeholder: `wall`, `column`, `floor`, `floor_exterior`, `ceiling`.
+- glTF Y arriba: plano (x, y) y altura h → (x, h, −y). El modelo se **recentra** en el origen (glTF usa
+  float32 y los planos reales pueden venir en coordenadas grandes); el desplazamiento queda en
+  `origin_offset_m`.
+- **Extras** (escritos con pygltflib después de exportar; three.js los expone en `userData`):
+  - piso: `type, room_id, name, slug, net_area_m2, declared_area_m2, is_roofed`;
+  - muro: `type, wall_id, source, thickness, adjacent_room_ids`;
+  - vano: `type, opening_id, kind, width, sill_height, head_height, wall_id, is_exterior`;
+  - escena: `gross_area_m2, covered_area_m2, open_area_m2, declared, display_area_m2,
+    display_area_kind` ("declarada" si existe el dato oficial, si no "calculada"), `floor_to_ceiling`.
+- Validación en tests: el volumen de muros es igual a área × altura − Σ vanos (±0.2 %).
