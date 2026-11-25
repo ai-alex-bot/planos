@@ -95,28 +95,35 @@ asociados a ningún bloque:
 
 ## 5. Ambientes
 
-1. Ambientes = huecos interiores (holes) de la máscara cerrada, cortados además por las líneas de
-   `room_separators`.
-2. Textos de capas `room_labels` (y TEXT/MTEXT dentro del polígono si no hay capa mapeada). MTEXT se
-   lee con `plain_text()` para quitar códigos de formato.
-3. Clasificación de textos:
-   - **área**: `12.50 m2`, `12.50 m²`, `A=12.50`, `12,50 M2` → `Room.declared_area_m2`;
-   - **otros** (se ignoran): cotas, números sueltos, `NPT +0.15`, `N.P.T.`, `NPT ±0.00`;
-   - **nombre**: el resto. Solo los nombres cuentan como etiqueta.
-4. Nombres comunes en Lima: `DORM.`, `DORM. PRINCIPAL`, `S.H.`, `SS.HH.`, `BAÑO`, `COC.`, `COCINA`,
-   `LAV.`, `LAVANDERÍA`, `HALL`, `ESTAR`, `SALA-COMEDOR`, `TERRAZA`.
-5. Slug: sin tildes, minúsculas, puntuación → `_`, colapsado; único con sufijo (`s_h_1`, `s_h_2`).
-6. `is_roofed = false` si el nombre calza `TERRAZA|BALC[OÓ]N|PATIO|JARD[IÍ]N`.
-7. Issues: `room_without_name`, `room_multiple_labels`, `room_area_mismatch`, `suspicious_area`
-   (`min_room_area` / `max_room_area`).
-8. `Wall.adjacent_room_ids`: se muestrea un punto a cada lado del eje (a `thickness/2 + ε`) y se busca
-   el ambiente que lo contiene.
+1. Ambientes = huecos interiores (holes) de la máscara cerrada (muros + todos los `opening_fill`),
+   cortados además por las líneas de `room_separators`. Huecos menores a `min_void_area` (0.05 m²) son
+   artefactos y se descartan.
+2. Textos: los de capas `room_labels`; si el plano no tiene ninguna, todos los que no estén en capas
+   `ignore`. MTEXT se lee con `plain_text()` (sin códigos de formato).
+3. Clasificación (`geometry/texts.py`):
+   - **área**: `12.50 m2`, `12,50 M²`, `A=12.50`, `ÁREA: 12.50` → `Room.declared_area_m2`;
+   - **otros** (se ignoran): `NPT +0.15`, `N.P.T. ±0.00`, números sueltos, `1.20x2.10`, `h=2.10`,
+     `P1`, `ESCALA 1/50`;
+   - **nombre**: el resto.
+4. Nombres en dos líneas ("DORM." sobre "PRINCIPAL") se unen si están apilados (separación vertical ≤
+   2 alturas de texto).
+5. Si alguno de los nombres pertenece al vocabulario usual (`DORM.`, `S.H.`, `SS.HH.`, `BAÑO`, `COC.`,
+   `COCINA`, `LAV.`, `LAVANDERÍA`, `HALL`, `ESTAR`, `SALA`, `COMEDOR`, `TERRAZA`, …), las notas que no lo
+   son ("PISO PORCELANATO") no cuentan como segundo nombre.
+6. Slug: sin tildes, minúsculas, puntuación → `_`; los repetidos llevan sufijo en todas sus apariciones
+   (`s_h_1`, `s_h_2`). Ambientes sin nombre: `ambiente` (+ sufijo).
+7. `is_roofed = false` si el nombre calza `TERRAZA|BALC[OÓ]N|PATIO|JARD[IÍ]N`.
+8. Issues: `room_without_name`, `room_multiple_labels` (sugiere `room_separators`), `room_area_mismatch`,
+   `suspicious_area` (`min_room_area` / `max_room_area`).
+9. `Wall.adjacent_room_ids`: se toma una franja de 5 cm a cada lado del muro y gana el ambiente que más
+   la cubre (lado izquierdo/derecho mirando de `start` a `end`; `None` = exterior).
 
 ## 6. Áreas de la unidad
 
-- `gross_area_m2` ("área techada (calculada)"): área de (ambientes techados ∪ muros que los
-  rodean), sin huecos.
-- `covered_area_m2` / `open_area_m2`: suma de área útil por `is_roofed`.
+- `covered_area_m2` / `open_area_m2`: suma del área útil por `is_roofed`.
+- `gross_area_m2` ("área techada (calculada)"): contorno exterior de la máscara cerrada, menos los
+  ambientes sin techar y menos los muros que solo bordean ambientes sin techar (parapetos, muros
+  laterales de la terraza). Los muros entre un ambiente techado y uno sin techar cuentan completos.
 - Si hay `declared` en el YAML y la diferencia supera `area_mismatch_pct` → `area_mismatch`.
 
 ## 7. Geometría 3D

@@ -105,6 +105,7 @@ class Tolerances(_Strict):
     gap_opening_max: float = Field(default=4.00, gt=0)
     cluster_gap: float = Field(default=0.50, gt=0)
     arc_flatten: float = Field(default=0.01, gt=0)
+    min_void_area: float = Field(default=0.05, ge=0)  # smaller enclosed voids are drawing artifacts
     min_room_area: float = Field(default=1.5, ge=0)
     max_room_area: float = Field(default=60.0, gt=0)
     area_mismatch_pct: float = Field(default=5.0, ge=0)

@@ -32,3 +32,4 @@ packages = ["src/planos"]
 testpaths = ["tests"]
 pythonpath = ["scripts"]
 addopts = "-ra"
+filterwarnings = ["error::RuntimeWarning"]

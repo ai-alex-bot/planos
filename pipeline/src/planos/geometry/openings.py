@@ -23,7 +23,7 @@ from shapely.ops import unary_union
 
 from planos.config import Config
 from planos.dxf.reader import Drawing, InsertItem
-from planos.geometry.walls import WallCandidate, WallResult
+from planos.geometry.walls import WallCandidate, WallResult, closing
 from planos.issues import IssueCode, Issues
 
 P = tuple[float, float]
@@ -278,7 +278,7 @@ def detect_openings(drawing: Drawing, walls: WallResult, cfg: Config, issues: Is
             o.fill = _rect(o.center, o.direction, o.width + 2 * tol.snap, o.thickness)
     gap_fills = [_rect(g.center, g.direction, g.width + 2 * tol.snap, g.thickness) for g in pending]
     closed = unary_union([walls.mask] + [o.fill for o in openings if o.fill is not None] + gap_fills)
-    closed = closed.buffer(tol.snap / 2, join_style="mitre").buffer(-tol.snap / 2, join_style="mitre")
+    closed = closing(closed, tol.snap / 2)
     shell = unary_union([Polygon(p.exterior) for p in getattr(closed, "geoms", [closed])])
 
     for g, fill in zip(pending, gap_fills):

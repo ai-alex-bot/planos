@@ -171,6 +171,7 @@ tolerances:
   gap_opening_max: 4.00
   cluster_gap: 0.50          # distancia máx. entre muros de una misma unidad
   arc_flatten: 0.01          # error máx. al discretizar arcos
+  min_void_area: 0.05         # huecos cerrados menores son artefactos
   min_room_area: 1.5
   max_room_area: 60.0
   area_mismatch_pct: 5.0

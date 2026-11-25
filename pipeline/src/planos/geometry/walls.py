@@ -15,6 +15,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+import shapely
 from shapely import STRtree
 from shapely.geometry import LineString, MultiPolygon, Polygon
 from shapely.ops import polygonize, unary_union
@@ -307,7 +308,12 @@ def _polygon_walls(drawing: Drawing, tol: Tolerances, issues: Issues) -> list[Wa
 # ------------------------------------------------------------------ main
 
 
-def _closing(geom, r: float):
+COORD_GRID = 1e-6  # m; removes float noise (near-duplicate vertices break mitre buffers)
+
+
+def closing(geom, r: float):
+    """Morphological closing with square corners, on a 1 µm grid."""
+    geom = shapely.set_precision(geom, COORD_GRID)
     return geom.buffer(r, join_style="mitre").buffer(-r, join_style="mitre")
 
 
@@ -324,7 +330,7 @@ def detect_walls(drawing: Drawing, cfg: Config, issues: Issues) -> WallResult:
     walls += _polygon_walls(drawing, tol, issues)
 
     r = max(tol.gap_opening_min / 2 - tol.snap, tol.snap)
-    mask = _closing(unary_union([w.footprint for w in walls]), r) if walls else Polygon()
+    mask = closing(unary_union([w.footprint for w in walls]), r) if walls else Polygon()
 
     # fallback: polygonize line work the mask does not explain and keep the thin faces
     leftover = [s for s in segs if not _explained(s, mask, tol)]
@@ -333,7 +339,7 @@ def detect_walls(drawing: Drawing, cfg: Config, issues: Issues) -> WallResult:
         for f in faces:
             walls.append(_from_polygon(f, "polygonized", ()))
         if faces:
-            mask = _closing(unary_union([mask, *faces]), r)
+            mask = closing(unary_union([mask, *faces]), r)
             leftover = [s for s in leftover if not _explained(s, mask, tol)]
 
     for s in leftover[:MAX_UNPAIRED_ISSUES]:
