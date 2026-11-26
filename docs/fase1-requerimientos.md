@@ -96,4 +96,12 @@ reconocimiento de planos en PDF o imagen.
 | 11 | Tests de equivalencia limpio vs desordenado | ✅ |
 | 12 | Visor: base, carga de GLB, HDRI local | ✅ |
 | 13 | Visor: modos órbita/planta/caminata y celular | ✅ |
-| 14 | README completo | ⏳ siguiente |
+| 14 | README completo | ✅ |
+
+## Criterios de terminado (verificados 2026-11-25)
+
+- [x] `uv run planos inspect` y `uv run planos convert` funcionan con los DXF de prueba (código 0).
+- [x] `pnpm dev` en `viewer/` muestra el modelo y se recorre en los 3 modos (smoke test con Playwright
+      en escritorio y celular emulado).
+- [x] Todos los tests pasan: 171 del pipeline (pytest) y 11 del visor (vitest).
+- [x] README en español con instalación, uso y cómo armar el YAML de mapeo para un plano nuevo.
