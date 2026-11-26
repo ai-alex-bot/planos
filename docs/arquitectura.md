@@ -26,13 +26,23 @@ DXF ──► planos.dxf.reader ──► geometry (cleanup → walls → openin
 ## Visor (`viewer/`)
 
 - Vite + React + TypeScript + React Three Fiber + drei.
-- Carga `public/models/demo.glb` o un GLB arrastrado.
-- Modos: órbita, planta (cámara ortográfica cenital), caminata a 1.60 m (WASD + pointer lock en
-  escritorio; joystick virtual + arrastre en celular; colisión simple con muros).
-- Iluminación con `<Environment files=...>` usando un HDRI **local** en `viewer/public/` (sin CDN: las
-  casetas de venta pueden tener mala conexión).
-- Clic en un piso: nombre del ambiente y área útil. Para la unidad: área declarada si existe; si no,
-  la calculada.
+- Carga `public/models/demo.glb`, `?model=otro.glb` (desde `public/models/`), un GLB arrastrado o uno
+  elegido con **Abrir GLB** (en el celular no hay arrastrar y soltar). `?modo=planta|caminar` abre en
+  ese modo.
+- Iluminación con un HDRI **local** (`public/hdri/lebombo_1k.hdr`, CC0 de Poly Haven): sin CDN, las
+  casetas de venta pueden tener mala conexión.
+- Modos (botones abajo o teclas 1/2/3):
+  - **Órbita**: cámara en perspectiva encuadrada al modelo (considera el FOV horizontal en
+    vertical); clic/toque en un piso → nombre y área útil.
+  - **Planta**: cámara ortográfica cenital con el norte del plano arriba, solo paneo y zoom, etiquetas
+    con nombre y área de cada ambiente (`label_position` de los extras).
+  - **Caminata**: ojos a 1.60 m, empieza en el ambiente techado más grande mirando al centro.
+    WASD/flechas (Shift corre) en escritorio; **joystick** en pantallas táctiles; arrastrar para
+    mirar. Colisión con rayos a 0.30/1.00/1.50 m: los alféizares detienen, las puertas no. Muestra
+    "Estás en …" con el ambiente bajo los pies.
+- Área de la unidad: la declarada si existe; si no, la calculada (de los extras de la escena).
+- Pruebas: `pnpm test` (vitest: lectura de extras, movimiento) y `pnpm smoke` (Playwright con el Edge
+  instalado: clic/toque en pisos, los 3 modos, joystick, colisiones, sin errores de consola).
 
 ## Muestras (`samples/`)
 

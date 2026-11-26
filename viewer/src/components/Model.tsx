@@ -10,12 +10,14 @@ const CLICK_DRAG_TOLERANCE_PX = 6;
 interface Props {
   url: string;
   selectedSlug: string | null;
+  /** false while walking: taps are used to look around */
+  interactive?: boolean;
   onSelectFloor: (floor: FloorInfo | null) => void;
   onReady: (root: Object3D) => void;
 }
 
 /** Loads the GLB, lets the user pick floors and highlights the selected room. */
-export function Model({ url, selectedSlug, onSelectFloor, onReady }: Props) {
+export function Model({ url, selectedSlug, interactive = true, onSelectFloor, onReady }: Props) {
   const gltf = useGLTF(url);
 
   const root = useMemo(() => {
@@ -51,6 +53,7 @@ export function Model({ url, selectedSlug, onSelectFloor, onReady }: Props) {
   }, [root, selectedSlug]);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
+    if (!interactive) return;
     e.stopPropagation(); // only the nearest hit counts (a wall in front blocks the floor behind)
     if (e.delta > CLICK_DRAG_TOLERANCE_PX) return; // it was a drag (orbit), not a tap
     onSelectFloor(readFloorInfo(e.intersections[0]?.object.userData));

@@ -26,8 +26,17 @@ describe("readFloorInfo", () => {
       slug: "sala_comedor",
       net_area_m2: 18.825,
       is_roofed: true,
+      label_position: [2.5, 0, -1.2],
     });
-    expect(f).toEqual({ roomId: "room_06", name: "SALA-COMEDOR", slug: "sala_comedor", netAreaM2: 18.825, isRoofed: true });
+    expect(f).toEqual({
+      roomId: "room_06",
+      name: "SALA-COMEDOR",
+      slug: "sala_comedor",
+      netAreaM2: 18.825,
+      isRoofed: true,
+      labelPosition: [2.5, 0, -1.2],
+    });
+    expect(readFloorInfo({ type: "floor", slug: "x", net_area_m2: 3, label_position: [1, 2] })?.labelPosition).toBeNull();
   });
 
   it("ignores walls and incomplete data", () => {

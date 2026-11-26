@@ -219,6 +219,8 @@ def build_glb(space: Space, ceiling: bool | None = None) -> tuple[bytes, BuildSt
             "net_area_m2": r.net_area_m2,
             "declared_area_m2": r.declared_area_m2,
             "is_roofed": r.is_roofed,
+            # where to put the room label (glTF coordinates, on the floor)
+            "label_position": [r.label_point[0] - offset[0], 0.0, -(r.label_point[1] - offset[1])],
         }
         if with_ceiling and r.is_roofed:
             cname = f"ceiling_{r.slug}"

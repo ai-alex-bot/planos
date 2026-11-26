@@ -95,5 +95,5 @@ reconocimiento de planos en PDF o imagen.
 | 10 | Generación GLB (mallas desde máscara, booleanos, extras) | ✅ |
 | 11 | Tests de equivalencia limpio vs desordenado | ✅ |
 | 12 | Visor: base, carga de GLB, HDRI local | ✅ |
-| 13 | Visor: modos órbita/planta/caminata y celular | ⏳ siguiente |
-| 14 | README completo | |
+| 13 | Visor: modos órbita/planta/caminata y celular | ✅ |
+| 14 | README completo | ⏳ siguiente |

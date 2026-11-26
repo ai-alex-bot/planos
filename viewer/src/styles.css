@@ -6,6 +6,7 @@
   --accent: #c9792b;
   --radius: 14px;
   --gap: 12px;
+  --bar-h: 52px;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
   -webkit-tap-highlight-color: transparent;
@@ -105,7 +106,7 @@ body,
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom) + var(--gap) + 64px);
+  bottom: calc(env(safe-area-inset-bottom) + var(--gap) + var(--bar-h) + var(--gap));
   min-width: min(320px, calc(100vw - 2 * var(--gap)));
   padding: 14px 44px 14px 18px;
 }
@@ -147,7 +148,7 @@ body,
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom) + var(--gap) + 64px);
+  bottom: calc(env(safe-area-inset-bottom) + var(--gap) + var(--bar-h) + var(--gap));
   margin: 0;
   padding: 6px 12px;
   border-radius: 999px;
@@ -179,4 +180,107 @@ body,
   gap: 6px;
   text-align: center;
   padding: 24px;
+}
+
+/* ------------------------------------------------------------------ modes */
+
+.mode-bar {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + var(--gap));
+  height: var(--bar-h);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+}
+
+.mode-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  min-width: 88px;
+  padding: 0 14px;
+  border-radius: calc(var(--radius) - 4px);
+  cursor: pointer;
+}
+
+.mode-btn.active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.room-chip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top) + var(--gap) + 72px);
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+.room-chip .room-name,
+.room-chip .room-area {
+  font-size: 1rem;
+}
+
+.plan-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.plan-label span {
+  color: var(--muted);
+}
+
+.joystick {
+  position: absolute;
+  left: calc(env(safe-area-inset-left) + 28px);
+  bottom: calc(env(safe-area-inset-bottom) + var(--gap) + var(--bar-h) + 28px);
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(35, 33, 29, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  touch-action: none;
+  display: grid;
+  place-items: center;
+}
+
+.joystick-knob {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+@media (max-width: 420px) {
+  .mode-btn {
+    min-width: 0;
+    padding: 0 12px;
+  }
+  .hint {
+    font-size: 0.78rem;
+  }
+}
+
+/* while walking the hint moves to the top so it never covers the joystick */
+.mode-walk .hint {
+  bottom: auto;
+  top: calc(env(safe-area-inset-top) + var(--gap) + 72px + 48px);
 }

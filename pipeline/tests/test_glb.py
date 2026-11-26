@@ -89,6 +89,13 @@ def test_node_extras_are_written(built: dict) -> None:
         assert ex["name"] == r.name and ex["net_area_m2"] == pytest.approx(r.net_area_m2)
         assert ex["is_roofed"] is r.is_roofed
     assert by_name["floor_terraza"].extras["is_roofed"] is False
+    # label position lies inside its room (glTF x, -z back to plan, minus the re-centering offset)
+    from shapely.geometry import Point
+
+    ox, oy = gltf.scenes[0].extras["origin_offset_m"]
+    for r in space.rooms:
+        x, _, z = by_name[f"floor_{r.slug}"].extras["label_position"]
+        assert r.polygon.to_shapely().contains(Point(x + ox, -z + oy)), r.slug
     openings = [n for n in gltf.nodes if n.extras and n.extras.get("type") == "opening"]
     assert len(openings) == 17
     assert {n.name for n in openings} == {o.id for o in space.openings}

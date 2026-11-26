@@ -16,6 +16,8 @@ export interface FloorInfo {
   slug: string;
   netAreaM2: number;
   isRoofed: boolean;
+  /** where to place the room label, glTF coordinates (null in GLBs from other tools) */
+  labelPosition: [number, number, number] | null;
 }
 
 type Data = Record<string, unknown>;
@@ -24,6 +26,11 @@ const num = (v: unknown): number | null => (typeof v === "number" && Number.isFi
 const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
 
 export const DEFAULT_FLOOR_TO_CEILING = 2.4;
+
+function vec3(v: unknown): [number, number, number] | null {
+  if (!Array.isArray(v) || v.length !== 3 || !v.every((x) => typeof x === "number" && Number.isFinite(x))) return null;
+  return [v[0], v[1], v[2]];
+}
 
 export function readUnitInfo(userData: Data | undefined): UnitInfo {
   const d = userData ?? {};
@@ -49,6 +56,7 @@ export function readFloorInfo(userData: Data | undefined): FloorInfo | null {
     slug,
     netAreaM2: area,
     isRoofed: d.is_roofed !== false,
+    labelPosition: vec3(d.label_position),
   };
 }
 
