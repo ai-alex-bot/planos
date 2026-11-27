@@ -51,8 +51,8 @@ def test_opening_counts(generated: tuple[Path, dict]) -> None:
     _, exp = generated
     clean = exp["files"]["depto_2d_limpio.dxf"]["openings"]
     messy = exp["files"]["depto_2d_desordenado.dxf"]["openings"]
-    assert clean == {"door": 8, "glass_door": 1, "window": 8}
-    assert messy == {"door": 7, "passage": 1, "glass_door": 1, "window": 8}
+    assert clean == {"door": 8, "glass_door": 1, "window": 7, "railing": 1}
+    assert messy == {"door": 7, "passage": 1, "glass_door": 1, "window": 7, "railing": 1}
     assert sum(clean.values()) == sum(messy.values())
 
 

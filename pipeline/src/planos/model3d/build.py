@@ -2,9 +2,11 @@
 
 * Wall meshes come from the union of all wall footprints split into disjoint pieces (one per wall),
   so there are no overlapping faces (no z-fighting at junctions).
-* Each piece is extruded to floor_to_ceiling and every opening box (sill..head) is subtracted with
-  manifold3d: lintels over doors/passages, sill + lintel at windows.
-* One floor per room (``floor_<slug>``), optional ceiling, empty ``opening_*`` nodes.
+* Each piece is extruded to its wall height (floor_to_ceiling; railings are low walls) and every
+  opening box (sill..head) is subtracted with manifold3d: lintels over doors/passages, sill + lintel
+  at windows, only a parapet at railings (the cutter goes past the top).
+* One floor per room (``floor_<slug>``), a ceiling per room with ``has_ceiling`` (facing down,
+  ``hidden_by_default``: the viewer shows it only when walking), empty ``opening_*`` nodes.
 * glTF is Y-up: plan (x, y) and height h map to (x, h, -y). The model is re-centered on the
   origin (float32 precision); the offset is stored in the scene extras.
 * Node extras (room name/area, wall data, opening data) are written with pygltflib after export.
@@ -105,7 +107,8 @@ def _flat_mesh(poly: Polygon, height: float, up: bool) -> trimesh.Trimesh:
 
 def _pieces(space: Space, offset: tuple[float, float]) -> list[tuple[str, str, object]]:
     """Disjoint footprint pieces (wall id, source, geometry): real walls first, fills last."""
-    order = sorted(space.walls, key=lambda w: w.source == "opening_fill")
+    # taller walls first: where a railing meets a wall the overlap belongs to the wall
+    order = sorted(space.walls, key=lambda w: (w.source == "opening_fill", -w.height))
     taken = Polygon()
     out = []
     for w in order:
@@ -118,9 +121,12 @@ def _pieces(space: Space, offset: tuple[float, float]) -> list[tuple[str, str, o
     return out
 
 
-def _cutter(o, thickness: float, margin: float, offset: tuple[float, float]) -> tuple[mf.Manifold, Polygon]:
+def _cutter(
+    o, thickness: float, margin: float, offset: tuple[float, float], top: float
+) -> tuple[mf.Manifold, Polygon]:
     lo = o.sill_height if o.sill_height > 0 else -COPLANAR_EPS
-    hi = o.head_height
+    # a head at the ceiling (railings) cuts past the top: nothing is left above the parapet
+    hi = o.head_height if o.head_height < top - COPLANAR_EPS else top + COPLANAR_EPS
     w = o.width + 2 * COPLANAR_EPS
     d = thickness + 2 * margin
     cx, cy = o.center[0] - offset[0], o.center[1] - offset[1]
@@ -162,8 +168,9 @@ def build_glb(space: Space, ceiling: bool | None = None) -> tuple[bytes, BuildSt
         offset = (0.0, 0.0)
 
     thickness = {w.id: w.thickness for w in space.walls}
+    walls_by_id = {w.id: w for w in space.walls}
     cutters = [
-        _cutter(o, thickness.get(o.wall_id, cfg.tolerances.wall_thickness_max), margin, offset)
+        _cutter(o, thickness.get(o.wall_id, cfg.tolerances.wall_thickness_max), margin, offset, height)
         for o in space.openings
         if o.wall_id is not None and o.width > 0
     ]
@@ -178,10 +185,9 @@ def build_glb(space: Space, ceiling: bool | None = None) -> tuple[bytes, BuildSt
     scene = trimesh.Scene()
     extras: dict[str, dict] = {}
     wall_volume = 0.0
-    walls_by_id = {w.id: w for w in space.walls}
 
     for wid, source, piece in _pieces(space, offset):
-        solid = _cross_section(piece).extrude(height)
+        solid = _cross_section(piece).extrude(walls_by_id[wid].height)
         pb = box(*piece.bounds)
         for cube, foot in cutters:
             if foot.intersects(pb) and foot.intersects(piece):
@@ -200,6 +206,7 @@ def build_glb(space: Space, ceiling: bool | None = None) -> tuple[bytes, BuildSt
             "wall_id": wid,
             "source": source,
             "thickness": w.thickness,
+            "height": w.height,
             "adjacent_room_ids": list(w.adjacent_room_ids),
         }
 
@@ -207,7 +214,7 @@ def build_glb(space: Space, ceiling: bool | None = None) -> tuple[bytes, BuildSt
     for r in space.rooms:
         poly = translate(r.polygon.to_shapely(), -offset[0], -offset[1])
         tm = _flat_mesh(poly, 0.0, up=True)
-        tm.visual.material = mats["floor" if r.is_roofed else "floor_exterior"]
+        tm.visual.material = mats["floor_exterior" if r.is_outdoor else "floor"]
         name = f"floor_{r.slug}"
         scene.add_geometry(tm, node_name=name, geom_name=name)
         floor_area += float(tm.area)
@@ -218,16 +225,17 @@ def build_glb(space: Space, ceiling: bool | None = None) -> tuple[bytes, BuildSt
             "slug": r.slug,
             "net_area_m2": r.net_area_m2,
             "declared_area_m2": r.declared_area_m2,
-            "is_roofed": r.is_roofed,
+            "is_outdoor": r.is_outdoor,
+            "has_ceiling": r.has_ceiling,
             # where to put the room label (glTF coordinates, on the floor)
             "label_position": [r.label_point[0] - offset[0], 0.0, -(r.label_point[1] - offset[1])],
         }
-        if with_ceiling and r.is_roofed:
+        if with_ceiling and r.has_ceiling:
             cname = f"ceiling_{r.slug}"
-            ctm = _flat_mesh(poly, height, up=False)
+            ctm = _flat_mesh(poly, height, up=False)  # faces down: seen from inside the room
             ctm.visual.material = mats["ceiling"]
             scene.add_geometry(ctm, node_name=cname, geom_name=cname)
-            extras[cname] = {"type": "ceiling", "room_id": r.id}
+            extras[cname] = {"type": "ceiling", "room_id": r.id, "slug": r.slug, "hidden_by_default": True}
 
     glb = scene.export(file_type="glb", include_normals=True)
     gltf = pygltflib.GLTF2.load_from_bytes(glb)

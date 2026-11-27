@@ -46,7 +46,7 @@ def test_clean_sample(clean_dxf: Path) -> None:
     assert len(d.segments["walls"]) > 50
     structure = d.polygons["structure"]
     assert len(structure) == 8 and {p.source for p in structure} == {"closed_polyline"}
-    assert Counter(i.kind for i in d.inserts) == {"door": 8, "window": 8, "glass_door": 1}
+    assert Counter(i.kind for i in d.inserts) == {"door": 8, "window": 7, "glass_door": 1, "railing": 1}
     labels = [t for t in d.texts if t.category == "room_labels"]
     assert len(labels) == 9
     x0, y0, x1, y1 = d.bounds()

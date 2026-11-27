@@ -10,7 +10,8 @@ from shapely.geometry import Polygon
 import generate_samples as gs
 from planos.config import Config, load_config
 from planos.dxf.reader import read_dxf
-from planos.geometry.openings import detect_openings
+from planos.geometry.openings import classify_inferred, detect_openings
+from planos.geometry.rooms import detect_rooms
 from planos.geometry.walls import detect_walls
 from planos.issues import IssueCode, Issues
 
@@ -19,7 +20,9 @@ def _run(path: Path, cfg: Config):
     issues = Issues()
     d = read_dxf(path, cfg, issues)
     w = detect_walls(d, cfg, issues)
-    return detect_openings(d, w, cfg, issues), issues
+    res = detect_openings(d, w, cfg, issues)
+    classify_inferred(res, detect_rooms(d, res.closed_mask, cfg, issues), cfg, issues)
+    return res, issues
 
 
 def _model_openings() -> dict[tuple[float, float], gs.OpeningSpec]:
@@ -72,12 +75,14 @@ def test_exterior_flags_and_heights(clean_dxf: Path, samples_dir: Path) -> None:
 def test_messy_inferred_kinds(messy_dxf: Path, samples_dir: Path) -> None:
     res, issues = _run(messy_dxf, load_config(samples_dir / "depto_2d_desordenado.yaml"))
     inferred = {tuple(round(v, 3) for v in o.center): o for o in res.openings if o.width_source == "inferred_gap"}
-    assert inferred[(8.2, -1.6)].kind == "window"  # terrace railing: outer boundary
+    terrace = inferred[(8.2, -1.6)]
+    assert terrace.kind == "railing"  # outer boundary of an outdoor room (the terrace)
+    assert (terrace.sill_height, terrace.head_height) == (1.00, 2.40)
     assert inferred[(8.8, 4.4)].kind == "passage"  # kitchen <-> living, no block
     assert inferred[(8.8, 4.4)].head_height == 2.10 and inferred[(8.8, 4.4)].sill_height == 0.0
     assert inferred[(8.2, 7.0)].kind == "window"  # drawn with window lines only
     reasons = " ".join(i.message for i in issues.by_code(IssueCode.OPENING_INFERRED))
-    assert "borde exterior" in reasons and "hueco interior" in reasons and "líneas de ventana" in reasons
+    assert "ambiente exterior" in reasons and "hueco interior" in reasons and "líneas de ventana" in reasons
 
 
 # ------------------------------------------------------------------ synthetic cases
@@ -120,7 +125,7 @@ def test_gap_next_to_perpendicular_wall(tmp_path: Path, closed: bool) -> None:
     assert o.width_source == "inferred_gap"
     assert o.width == pytest.approx(0.9, abs=0.005)
     assert o.center == pytest.approx((T / 2 + 0.45, 0.0), abs=0.005)
-    assert o.kind == "window"  # leads outside the box -> exterior
+    assert o.kind == "window"  # leads outside an indoor room (unnamed) -> window
     assert len(res.closed_mask.interiors) == 1
     assert Polygon(res.closed_mask.interiors[0]).area == pytest.approx((4 - T) * (3 - T), abs=0.01)
 

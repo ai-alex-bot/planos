@@ -6,8 +6,14 @@ from collections import Counter
 
 from planos.schema import Space
 
-KIND_ES = {"door": "puerta", "window": "ventana", "glass_door": "mampara", "passage": "vano libre"}
-KIND_ES_PLURAL = {"door": "puertas", "window": "ventanas", "glass_door": "mamparas", "passage": "vanos libres"}
+KIND_ES = {"door": "puerta", "window": "ventana", "glass_door": "mampara", "passage": "vano libre", "railing": "baranda"}
+KIND_ES_PLURAL = {
+    "door": "puertas",
+    "window": "ventanas",
+    "glass_door": "mamparas",
+    "passage": "vanos libres",
+    "railing": "barandas",
+}
 SEVERITY_ES = {"error": "ERROR", "warning": "Advertencia", "info": "Info"}
 UNITS_ORIGIN_ES = {"insunits": "$INSUNITS del DXF", "config": "YAML", "heuristic": "inferidas"}
 WIDTH_SOURCE_ES = {"wall_gap": "hueco del muro", "block_extent": "tamaño del bloque", "inferred_gap": "hueco inferido"}
@@ -24,7 +30,8 @@ def _count(items: Counter, labels: dict[str, str], plural: dict[str, str]) -> st
 
 def render_report(space: Space) -> str:
     m = space.metadata
-    walls = [w for w in space.walls if w.source not in ("opening_fill", "structure")]
+    walls = [w for w in space.walls if w.source not in ("opening_fill", "structure", "railing")]
+    railings = sum(1 for w in space.walls if w.source == "railing")
     structure = sum(1 for w in space.walls if w.source == "structure")
     fills = sum(1 for w in space.walls if w.source == "opening_fill")
     kinds = Counter(o.kind for o in space.openings)
@@ -47,10 +54,15 @@ def render_report(space: Space) -> str:
     add(f"| Unidades del dibujo | {m.source_units} ({UNITS_ORIGIN_ES[m.units_origin]}), ×{m.scale_to_m:g} → m |")
     if m.region:
         add(f"| Región recortada (m) | [{m.region.min[0]:.2f}, {m.region.min[1]:.2f}] – [{m.region.max[0]:.2f}, {m.region.max[1]:.2f}] |")
-    add(f"| Muros | {len(walls)} muros, {structure} columnas/placas (+{fills} rellenos de vano) |")
+    extra = f", {railings} tramos de baranda dibujados" if railings else ""
+    add(f"| Muros | {len(walls)} muros, {structure} columnas/placas{extra} (+{fills} rellenos de vano) |")
     add(f"| Vanos | {len(space.openings)}: {_count(kinds, KIND_ES, KIND_ES_PLURAL)} |")
     add(f"| Ambientes | {len(space.rooms)} |")
-    add(f"| Altura piso-techo | {m.config.heights.floor_to_ceiling:.2f} m |")
+    h = m.config.heights
+    add(
+        f"| Alturas | piso-techo {h.floor_to_ceiling:.2f} m · dintel {h.door_head:.2f} m · "
+        f"alféizar {h.window_sill:.2f} m · baranda {h.railing:.2f} m |"
+    )
     add("")
 
     add("## Áreas de la unidad")
@@ -60,7 +72,7 @@ def render_report(space: Space) -> str:
     decl = m.declared
     add(f"| Área techada (calculada, incluye muros) | {_m2(m.gross_area_m2)} | {_m2(decl.area_techada_m2 if decl else None)} |")
     add(f"| Área útil de ambientes techados | {_m2(m.covered_area_m2)} | — |")
-    add(f"| Área libre (sin techar) | {_m2(m.open_area_m2)} | {_m2(decl.area_libre_m2 if decl else None)} |")
+    add(f"| Área libre (terrazas, balcones, patios) | {_m2(m.open_area_m2)} | {_m2(decl.area_libre_m2 if decl else None)} |")
     add("")
     if decl and (decl.area_techada_m2 or decl.area_libre_m2):
         add("> El visor muestra el área **declarada** de la unidad cuando existe.")
@@ -69,15 +81,15 @@ def render_report(space: Space) -> str:
     add("## Ambientes")
     add("")
     if space.rooms:
-        add("| ID | Ambiente | Slug | Área útil (m²) | Área en plano (m²) | Techado |")
-        add("|---|---|---|---:|---:|---|")
+        add("| ID | Ambiente | Slug | Área útil (m²) | Área en plano (m²) | Exterior | Techo 3D |")
+        add("|---|---|---|---:|---:|---|---|")
         for r in space.rooms:
             add(
                 f"| {r.id} | {r.name or '_(sin nombre)_'} | `{r.slug}` | {r.net_area_m2:.2f} | "
-                f"{_m2(r.declared_area_m2)} | {'sí' if r.is_roofed else 'no'} |"
+                f"{_m2(r.declared_area_m2)} | {'sí' if r.is_outdoor else 'no'} | {'sí' if r.has_ceiling else 'no'} |"
             )
         total = sum(r.net_area_m2 for r in space.rooms)
-        add(f"| | **Total** | | **{total:.2f}** | | |")
+        add(f"| | **Total** | | **{total:.2f}** | | | |")
     else:
         add("_No se detectaron ambientes._")
     add("")

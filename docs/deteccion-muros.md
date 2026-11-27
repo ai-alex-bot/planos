@@ -19,6 +19,10 @@ perfectamente cerrado, y todo lo que no se puede resolver se reporta como issue 
   (explotados recursivamente con su transformación).
 - Capas `structure` (columnas, placas): polilíneas cerradas y hatches, que entran a la máscara con
   `source = "structure"`.
+- Capas `railings` (barandas y parapetos dibujados con líneas): se emparejan como muros y, si es una
+  sola línea, se les da `geometry.railing_thickness`. Son **muros bajos** (`source = "railing"`,
+  altura `heights.railing`): cierran ambientes (un balcón volado) sin nada encima. Un muro de altura
+  completa nunca se prolonga dentro de una baranda.
 - Entidades no soportadas → `entity_unsupported`.
 
 ## 2. Limpieza
@@ -63,6 +67,8 @@ cero que conectan todos los ambientes en uno.
 
 - INSERT en capas `doors`/`windows`, o con nombre de bloque que calce `blocks.*`.
 - `blocks.glass_doors` (`MAMP*`) → `kind = "glass_door"` (sill 0.00, head 2.10).
+- `blocks.railings` (`BARANDA*`, `PARAPETO*`) → `kind = "railing"`: parapeto de `heights.railing`
+  y nada encima. El nombre manda sobre la capa (una baranda en la capa VENTANAS sigue siendo baranda).
 - Se asocia al hueco paralelo (±10°) con el que se superpone su extensión proyectada; el ancho y
   el centro salen del hueco real (`wall_gap`).
 - Si no hay hueco (muro dibujado continuo bajo el bloque), va al muro paralelo más cercano y el
@@ -85,8 +91,12 @@ asociados a ningún bloque:
 | Situación | Resultado |
 |---|---|
 | Hay líneas de capa `windows` dentro del hueco | `window` |
-| Hueco en el borde exterior de la unidad | `window` (alturas por defecto) |
+| Borde exterior y un ambiente exterior al lado (`is_outdoor`: terraza, balcón…) | `railing` |
+| Otro hueco en el borde exterior de la unidad | `window` (alturas por defecto) |
 | Hueco interior | `passage` (vano libre, head = `door_head`) |
+
+Esta clasificación se hace **después** de detectar los ambientes (hace falta saber si el ambiente
+vecino es exterior); por eso `opening_inferred` se emite en ese momento.
 
 `width_source = "inferred_gap"` y issue `opening_inferred` (warning) con la ubicación.
 
@@ -112,7 +122,9 @@ asociados a ningún bloque:
    son ("PISO PORCELANATO") no cuentan como segundo nombre.
 6. Slug: sin tildes, minúsculas, puntuación → `_`; los repetidos llevan sufijo en todas sus apariciones
    (`s_h_1`, `s_h_2`). Ambientes sin nombre: `ambiente` (+ sufijo).
-7. `is_roofed = false` si el nombre calza `TERRAZA|BALC[OÓ]N|PATIO|JARD[IÍ]N`.
+7. `is_outdoor = true` si el nombre calza `TERRAZA|BALC[OÓ]N|PATIO|JARD[IÍ]N` (área libre y regla de
+   barandas). `has_ceiling` (solo 3D) es por defecto lo contrario, y el YAML puede forzarlo por nombre
+   o slug: `rooms: {"TERRAZA": {has_ceiling: true}}` para una terraza bajo la losa de arriba.
 8. Issues: `room_without_name`, `room_multiple_labels` (sugiere `room_separators`), `room_area_mismatch`,
    `suspicious_area` (`min_room_area` / `max_room_area`).
 9. `Wall.adjacent_room_ids`: se toma una franja de 5 cm a cada lado del muro y gana el ambiente que más
@@ -120,7 +132,7 @@ asociados a ningún bloque:
 
 ## 6. Áreas de la unidad
 
-- `covered_area_m2` / `open_area_m2`: suma del área útil por `is_roofed`.
+- `covered_area_m2` / `open_area_m2`: suma del área útil por `is_outdoor`.
 - `gross_area_m2` ("área techada (calculada)"): contorno exterior de la máscara cerrada, menos los
   ambientes sin techar y menos los muros que solo bordean ambientes sin techar (parapetos, muros
   laterales de la terraza). Los muros entre un ambiente techado y uno sin techar cuentan completos.
@@ -134,16 +146,21 @@ asociados a ningún bloque:
 - Cada pieza se extruye a `floor_to_ceiling` con manifold3d y se le restan las cajas de los vanos
   (`ancho × (espesor + 2·opening_cut_margin) × (sill..head)`): queda el dintel sobre puertas/pasos y
   alféizar + dintel en ventanas. Los cortadores sobresalen 1 mm a lo largo para evitar caras coplanares.
-- Un piso por ambiente: `floor_<slug>` (UV en metros, para texturas en la Fase 2). Techo opcional
-  (`geometry.ceiling`), solo en ambientes techados: `ceiling_<slug>`.
+- Un piso por ambiente: `floor_<slug>` (UV en metros, para texturas en la Fase 2). Techo
+  `ceiling_<slug>` (mirando hacia abajo) en los ambientes con `has_ceiling` (`geometry.ceiling`, por
+  defecto sí), con `hidden_by_default`: el visor solo lo muestra en modo Caminar.
+- Cada pieza se extruye a la altura de su muro (las barandas a `heights.railing`). El cortador de un
+  vano tipo `railing` sube más allá del techo: queda el parapeto y nada encima.
 - Nodos vacíos `opening_<tipo>_NN` en la base del vano, rotados con su muro.
 - Materiales placeholder: `wall`, `column`, `floor`, `floor_exterior`, `ceiling`.
 - glTF Y arriba: plano (x, y) y altura h → (x, h, −y). El modelo se **recentra** en el origen (glTF usa
   float32 y los planos reales pueden venir en coordenadas grandes); el desplazamiento queda en
   `origin_offset_m`.
 - **Extras** (escritos con pygltflib después de exportar; three.js los expone en `userData`):
-  - piso: `type, room_id, name, slug, net_area_m2, declared_area_m2, is_roofed`;
-  - muro: `type, wall_id, source, thickness, adjacent_room_ids`;
+  - piso: `type, room_id, name, slug, net_area_m2, declared_area_m2, is_outdoor, has_ceiling,
+    label_position`;
+  - techo: `type, room_id, slug, hidden_by_default`;
+  - muro: `type, wall_id, source, thickness, height, adjacent_room_ids`;
   - vano: `type, opening_id, kind, width, sill_height, head_height, wall_id, is_exterior`;
   - escena: `gross_area_m2, covered_area_m2, open_area_m2, declared, display_area_m2,
     display_area_kind` ("declarada" si existe el dato oficial, si no "calculada"), `floor_to_ceiling`.

@@ -21,7 +21,9 @@ def test_defaults_without_yaml() -> None:
     assert cfg.heights.window_sill == 1.00
     assert cfg.tolerances.max_room_area == 60.0
     assert cfg.tolerances.area_mismatch_pct == 5.0
-    assert cfg.geometry.ceiling is False
+    assert cfg.geometry.ceiling is True
+    assert cfg.heights.railing == 1.00
+    assert cfg.rooms == {}
 
 
 @pytest.mark.parametrize(
@@ -38,6 +40,8 @@ def test_defaults_without_yaml() -> None:
         ("PUERTAS", "doors"),
         ("VENTANA", "windows"),
         ("MAMPARAS", "windows"),
+        ("BARANDAS", "railings"),
+        ("PARAPETO", "railings"),
         ("TEXTOS", "room_labels"),
         ("AMBIENTES", "room_labels"),
         ("COTAS", "ignore"),
@@ -113,7 +117,9 @@ def test_invalid_values() -> None:
         ("MAMPARA-200", "doors", "glass_door"),
         ("MAMP-1", "windows", "glass_door"),
         ("VENTANA-140", "windows", "window"),
-        ("BARANDA-290", "windows", "window"),
+        ("BARANDA-290", "windows", "railing"),  # railing names win over the windows layer
+        ("PARAPETO-1", None, "railing"),
+        ("BLOQUE-X", "railings", "railing"),
         ("P-02", None, "door"),
         ("V1", None, "window"),
         ("CAMA", None, None),

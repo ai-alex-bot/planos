@@ -87,8 +87,8 @@ def test_node_extras_are_written(built: dict) -> None:
         ex = by_name[f"floor_{r.slug}"].extras
         assert ex["type"] == "floor"
         assert ex["name"] == r.name and ex["net_area_m2"] == pytest.approx(r.net_area_m2)
-        assert ex["is_roofed"] is r.is_roofed
-    assert by_name["floor_terraza"].extras["is_roofed"] is False
+        assert ex["is_outdoor"] is r.is_outdoor and ex["has_ceiling"] is r.has_ceiling
+    assert by_name["floor_terraza"].extras["is_outdoor"] is True
     # label position lies inside its room (glTF x, -z back to plan, minus the re-centering offset)
     from shapely.geometry import Point
 
@@ -118,13 +118,35 @@ def test_declared_area_is_displayed(built: dict) -> None:
     assert unit["display_area_m2"] == 72.5 and unit["display_area_kind"] == "declarada"
 
 
-def test_ceiling_option(built: dict) -> None:
-    space, _, _ = built["depto_2d_limpio"]
-    data, _ = build_glb(space, ceiling=True)
-    gltf = pygltflib.GLTF2.load_from_bytes(data)
-    ceilings = [n.name for n in gltf.nodes if n.name and n.name.startswith("ceiling_")]
-    assert len(ceilings) == 8  # every roofed room, not the terrace
+def test_ceilings_by_default(built: dict) -> None:
+    space, path, _ = built["depto_2d_limpio"]
+    gltf = pygltflib.GLTF2().load(str(path))
+    ceilings = {n.name: n for n in gltf.nodes if n.name and n.name.startswith("ceiling_")}
+    assert len(ceilings) == 8  # every room with has_ceiling, not the terrace
     assert "ceiling_terraza" not in ceilings
+    assert all(n.extras["hidden_by_default"] is True for n in ceilings.values())
+    # facing down (seen from inside the room) at floor_to_ceiling
+    scene = trimesh.load(path)
+    for name in ceilings:
+        m = scene.geometry[name]
+        assert (m.face_normals[:, 1] < -0.99).all(), name
+        assert m.vertices[:, 1] == pytest.approx(2.40)
+    # can be turned off
+    data, _ = build_glb(space, ceiling=False)
+    assert not [n for n in pygltflib.GLTF2.load_from_bytes(data).nodes if n.name and n.name.startswith("ceiling_")]
+
+
+@pytest.mark.parametrize("sample", ["depto_2d_limpio", "depto_2d_desordenado"])
+def test_every_wall_mesh_is_watertight(built: dict, sample: str) -> None:
+    """The plan view fills cut walls by drawing their inner faces: walls must be closed solids."""
+    _, path, _ = built[sample]
+    scene = trimesh.load(path)
+    walls = {n: g for n, g in scene.geometry.items() if n.startswith("wall_")}
+    assert walls
+    for name, g in walls.items():
+        m = g.copy()
+        m.merge_vertices()
+        assert m.is_watertight, name
 
 
 def test_clean_and_messy_models_match(built: dict) -> None:

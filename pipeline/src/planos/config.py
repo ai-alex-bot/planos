@@ -14,10 +14,13 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-LayerCategory = Literal["walls", "structure", "doors", "windows", "room_labels", "room_separators", "ignore"]
+LayerCategory = Literal[
+    "walls", "structure", "railings", "doors", "windows", "room_labels", "room_separators", "ignore"
+]
 LAYER_CATEGORIES: tuple[LayerCategory, ...] = (
     "walls",
     "structure",
+    "railings",
     "doors",
     "windows",
     "room_labels",
@@ -29,6 +32,7 @@ LAYER_CATEGORIES: tuple[LayerCategory, ...] = (
 DEFAULT_LAYER_PATTERNS: dict[LayerCategory, list[str]] = {
     "walls": [r"MUROS?", r"WALLS?", r"A-WALL.*", r"TABIQUE(RIA|S)?", r"ALBA[ÑN]ILER[IÍ]A", r"MUROS?[-_ ].*"],
     "structure": [r"COLUMNAS?", r"PLACAS?", r"ESTRUCTURAS?", r"CONCRETO", r"S-COL.*", r"COLUMNAS?[-_ ].*"],
+    "railings": [r"BARANDAS?", r"PARAPETOS?", r"A-RAIL.*", r"BARANDAS?[-_ ].*"],
     "doors": [r"PUERTAS?", r"DOORS?", r"A-DOOR.*", r"PUERTAS?[-_ ].*"],
     "windows": [r"VENTANAS?", r"WINDOWS?", r"A-GLAZ.*", r"MAMPARAS?", r"VENTANAS?[-_ ].*"],
     "room_labels": [r"TEXTOS?", r"AMBIENTES?", r"A-AREA-IDEN.*", r"NOMBRES?", r"ROOMS?"],
@@ -57,6 +61,7 @@ class LayerMap(_Strict):
 
     walls: list[str] | None = None
     structure: list[str] | None = None
+    railings: list[str] | None = None  # railings/parapets drawn with lines: modeled as low walls
     doors: list[str] | None = None
     windows: list[str] | None = None
     room_labels: list[str] | None = None
@@ -68,8 +73,9 @@ class BlockMap(_Strict):
     """Block name glob patterns (case-insensitive), used together with layers."""
 
     doors: list[str] = Field(default_factory=lambda: ["PUERTA*", "P-*", "P[0-9]*", "DOOR*"])
-    windows: list[str] = Field(default_factory=lambda: ["VENT*", "V-*", "V[0-9]*", "WINDOW*", "BARANDA*"])
+    windows: list[str] = Field(default_factory=lambda: ["VENT*", "V-*", "V[0-9]*", "WINDOW*"])
     glass_doors: list[str] = Field(default_factory=lambda: ["MAMP*"])
+    railings: list[str] = Field(default_factory=lambda: ["BARANDA*", "PARAPETO*"])
 
 
 class DeclaredAreas(_Strict):
@@ -82,13 +88,14 @@ class Heights(_Strict):
     door_head: float = Field(default=2.10, gt=0)
     window_sill: float = Field(default=1.00, ge=0)
     window_head: float = Field(default=2.10, gt=0)
+    railing: float = Field(default=1.00, gt=0)  # railing / parapet height
 
     @model_validator(mode="after")
     def _check(self) -> Heights:
         if self.window_sill >= self.window_head:
             raise ValueError("window_sill debe ser menor que window_head")
-        if max(self.door_head, self.window_head) > self.floor_to_ceiling:
-            raise ValueError("door_head/window_head no pueden superar floor_to_ceiling")
+        if max(self.door_head, self.window_head, self.railing) > self.floor_to_ceiling:
+            raise ValueError("door_head/window_head/railing no pueden superar floor_to_ceiling")
         return self
 
 
@@ -112,8 +119,13 @@ class Tolerances(_Strict):
 
 
 class Geometry(_Strict):
-    ceiling: bool = False
+    ceiling: bool = True  # generate ceilings for rooms with has_ceiling (the viewer shows them only when walking)
+    railing_thickness: float = Field(default=0.10, gt=0)  # m, for railings drawn with a single line
     opening_cut_margin: float = Field(default=0.05, ge=0)  # extra depth of opening cutters (m)
+
+
+class RoomOverride(_Strict):
+    has_ceiling: bool | None = None  # e.g. a terrace under the slab of the floor above
 
 
 class Config(_Strict):
@@ -122,6 +134,7 @@ class Config(_Strict):
     layers: LayerMap = Field(default_factory=LayerMap)
     blocks: BlockMap = Field(default_factory=BlockMap)
     declared: DeclaredAreas | None = None
+    rooms: dict[str, RoomOverride] = Field(default_factory=dict)  # by room name ("TERRAZA") or slug
     heights: Heights = Field(default_factory=Heights)
     tolerances: Tolerances = Field(default_factory=Tolerances)
     geometry: Geometry = Field(default_factory=Geometry)
@@ -188,21 +201,27 @@ class LayerClassifier:
         return "yaml" if cat in self.explicit else "heuristic"
 
 
-OpeningKindFromBlock = Literal["door", "window", "glass_door"]
+OpeningKindFromBlock = Literal["door", "window", "glass_door", "railing"]
 
 
 def classify_block(name: str, layer_category: LayerCategory | None, blocks: BlockMap) -> OpeningKindFromBlock | None:
     """Opening kind of an INSERT from its block name and layer category (None = not an opening).
 
-    Glass-door names win (a mampara may sit on the doors or windows layer); then the layer;
-    then the block name patterns.
+    Glass-door and railing names win (they may sit on the doors or windows layer); then the
+    layer; then the block name patterns.
     """
+    if layer_category == "ignore":
+        return None
     if _glob_match(name, blocks.glass_doors):
         return "glass_door"
+    if _glob_match(name, blocks.railings):
+        return "railing"
     if layer_category == "doors":
         return "door"
     if layer_category == "windows":
         return "window"
+    if layer_category == "railings":
+        return "railing"
     if layer_category in (None, "room_labels"):
         if _glob_match(name, blocks.doors):
             return "door"

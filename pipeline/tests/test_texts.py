@@ -1,6 +1,6 @@
 import pytest
 
-from planos.geometry.texts import Label, classify, is_roofed, is_room_word, merge_multiline, slugify, unique_slugs
+from planos.geometry.texts import Label, classify, is_outdoor, is_room_word, merge_multiline, slugify, unique_slugs
 
 
 @pytest.mark.parametrize(
@@ -42,12 +42,12 @@ def test_room_vocabulary() -> None:
 
 
 @pytest.mark.parametrize(
-    "name, roofed",
-    [("TERRAZA", False), ("BALCÓN", False), ("balcon", False), ("PATIO", False), ("JARDÍN", False),
-     ("SALA-COMEDOR", True), ("DORM. 1", True), (None, True)],
+    "name, outdoor",
+    [("TERRAZA", True), ("BALCÓN", True), ("balcon", True), ("PATIO", True), ("JARDÍN", True),
+     ("SALA-COMEDOR", False), ("DORM. 1", False), (None, False)],
 )
-def test_is_roofed(name, roofed) -> None:
-    assert is_roofed(name) is roofed
+def test_is_outdoor(name, outdoor) -> None:
+    assert is_outdoor(name) is outdoor
 
 
 @pytest.mark.parametrize(

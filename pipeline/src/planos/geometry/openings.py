@@ -5,8 +5,9 @@
    ending next to a perpendicular wall or column).
 2. Each block is matched to the parallel gap it overlaps (width from the real gap). Without a gap
    (wall drawn continuous) it goes to the nearest parallel wall with the block extent as width.
-3. Gaps left without a block are inferred: window lines inside → window; on the outer boundary →
-   window (railing/parapet heights); interior → passage.
+3. Gaps left without a block are inferred once rooms are known (``classify_inferred``): window
+   lines inside → window; outer boundary next to an outdoor room (terrace, balcony) → railing;
+   other outer boundary → window; interior → passage.
 
 Every opening gets a fill rectangle (wall thickness deep, overlapping the walls a little) that
 closes the wall mask so rooms can be found; the 3D step later cuts sill..head out of it.
@@ -55,7 +56,7 @@ class Gap:
 
 @dataclass
 class OpeningCandidate:
-    kind: str  # door | window | glass_door | passage
+    kind: str  # door | window | glass_door | passage | railing
     center: P
     width: float
     direction: P  # wall axis (unit)
@@ -68,6 +69,7 @@ class OpeningCandidate:
     handle: str | None = None
     is_exterior: bool = False
     fill: Polygon | None = None
+    has_window_lines: bool = False  # inferred gaps only
 
     @property
     def rotation_deg(self) -> float:
@@ -172,6 +174,8 @@ def _heights(kind: str, cfg: Config) -> tuple[float, float]:
     h = cfg.heights
     if kind == "window":
         return h.window_sill, h.window_head
+    if kind == "railing":
+        return h.railing, h.floor_to_ceiling  # low wall, nothing above it
     return 0.0, h.door_head
 
 
@@ -284,19 +288,9 @@ def detect_openings(drawing: Drawing, walls: WallResult, cfg: Config, issues: Is
     for g, fill in zip(pending, gap_fills):
         probe = fill.buffer(tol.snap)
         has_lines = any(probe.intersects(l) and probe.intersection(l).length > tol.min_wall_length for l in window_lines)
-        o = OpeningCandidate("window", g.center, g.width, g.direction, g.thickness, g.wall, "inferred_gap",
-                             *_heights("window", cfg), fill=fill)
-        exterior = _is_exterior(o, shell)
-        if not has_lines and not exterior:
-            o.kind = "passage"
-            o.sill_height, o.head_height = _heights("passage", cfg)
-        reason = "líneas de ventana" if has_lines else ("borde exterior" if exterior else "hueco interior")
-        issues.add(
-            IssueCode.OPENING_INFERRED,
-            f"Hueco de {g.width:.2f} m sin bloque: se asume '{o.kind}' ({reason}).",
-            location=g.center,
-            handles=g.wall.handles[:5],
-        )
+        # provisional kind; classify_inferred() decides once rooms are known
+        o = OpeningCandidate("passage", g.center, g.width, g.direction, g.thickness, g.wall, "inferred_gap",
+                             *_heights("passage", cfg), fill=fill, has_window_lines=has_lines)
         openings.append(o)
 
     for o in openings:
@@ -314,3 +308,38 @@ def detect_openings(drawing: Drawing, walls: WallResult, cfg: Config, issues: Is
         if o.fill is not None
     ]
     return OpeningResult(openings=openings, fill_walls=fill_walls, closed_mask=closed, gaps=gaps)
+
+
+def _side_rooms(o: OpeningCandidate, rooms) -> list:
+    """Rooms touching either face of the opening."""
+    nx, ny = -o.direction[1], o.direction[0]
+    k = o.thickness / 2 + EXTERIOR_PROBE
+    out = []
+    for sign in (1, -1):
+        p = Point(o.center[0] + sign * nx * k, o.center[1] + sign * ny * k)
+        out += [r for r in rooms if r.polygon.covers(p)]
+    return out
+
+
+def classify_inferred(result: OpeningResult, rooms, cfg: Config, issues: Issues) -> None:
+    """Decide the kind of gaps without a block (needs rooms) and report each one."""
+    for o in result.openings:
+        if o.width_source != "inferred_gap":
+            continue
+        outdoor = any(r.is_outdoor for r in _side_rooms(o, rooms))
+        if o.has_window_lines:
+            kind, reason = "window", "líneas de ventana"
+        elif o.is_exterior and outdoor:
+            kind, reason = "railing", "borde exterior de un ambiente exterior"
+        elif o.is_exterior:
+            kind, reason = "window", "borde exterior"
+        else:
+            kind, reason = "passage", "hueco interior"
+        o.kind = kind
+        o.sill_height, o.head_height = _heights(kind, cfg)
+        issues.add(
+            IssueCode.OPENING_INFERRED,
+            f"Hueco de {o.width:.2f} m sin bloque: se asume '{kind}' ({reason}).",
+            location=o.center,
+            handles=o.wall.handles[:5] if o.wall else (),
+        )

@@ -11,13 +11,13 @@ from planos import __version__
 from planos.config import Config
 from planos.dxf.reader import Drawing, read_dxf
 from planos.geometry.clusters import find_clusters, report_clusters
-from planos.geometry.openings import OpeningResult, detect_openings
+from planos.geometry.openings import OpeningResult, classify_inferred, detect_openings
 from planos.geometry.rooms import RoomCandidate, assign_adjacency, detect_rooms, unit_areas
 from planos.geometry.walls import WallResult, detect_walls
 from planos.issues import BBox2, Issues
 from planos.schema import Metadata, Opening, Polygon2, Room, Space, Wall, _r
 
-OPENING_PREFIX = {"door": "door", "window": "window", "glass_door": "glass_door", "passage": "passage"}
+OPENING_PREFIX = {"door": "door", "window": "window", "glass_door": "glass_door", "passage": "passage", "railing": "railing"}
 
 
 @dataclass
@@ -38,6 +38,7 @@ def build_space(dxf: Path | str, cfg: Config) -> PipelineResult:
     walls = detect_walls(drawing, cfg, issues)
     openings = detect_openings(drawing, walls, cfg, issues)
     rooms = detect_rooms(drawing, openings.closed_mask, cfg, issues)
+    classify_inferred(openings, rooms, cfg, issues)
     areas = unit_areas(rooms, openings.closed_mask, cfg, issues)
 
     all_walls = walls.walls + openings.fill_walls
@@ -55,7 +56,7 @@ def build_space(dxf: Path | str, cfg: Config) -> PipelineResult:
                 start=_r(w.start),
                 end=_r(w.end),
                 thickness=round(w.thickness, 4),
-                height=height,
+                height=w.height if w.height is not None else height,
                 footprint=Polygon2.from_shapely(w.footprint),
                 source=w.source,  # type: ignore[arg-type]
                 adjacent_room_ids=adjacency[id(w)],
@@ -93,7 +94,8 @@ def build_space(dxf: Path | str, cfg: Config) -> PipelineResult:
             polygon=Polygon2.from_shapely(r.polygon),
             net_area_m2=round(r.net_area_m2, 3),
             declared_area_m2=r.declared_area_m2,
-            is_roofed=r.is_roofed,
+            is_outdoor=r.is_outdoor,
+            has_ceiling=r.has_ceiling,
             label_point=_r(r.label_point),
             label_handle=r.label_handle,
         )

@@ -55,7 +55,7 @@ def find_clusters(drawing: Drawing, cluster_gap: float) -> list[Cluster]:
     """
     r = cluster_gap / 2
     walls = []
-    for cat in ("walls", "structure"):
+    for cat in ("walls", "structure", "railings"):
         walls += [LineString([s.a, s.b]).buffer(r, cap_style="flat") for s in drawing.segments.get(cat, [])]
         walls += [p.polygon.buffer(r) for p in drawing.polygons.get(cat, [])]
     if not walls:

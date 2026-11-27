@@ -34,7 +34,7 @@ def messy(samples_dir: Path) -> Space:
 
 
 def _rooms(space: Space) -> dict[str, tuple]:
-    return {r.slug: (r.name, r.net_area_m2, r.is_roofed) for r in space.rooms}
+    return {r.slug: (r.name, r.net_area_m2, r.is_outdoor) for r in space.rooms}
 
 
 def _assert_same_apartment(a: Space, b: Space, transform=None, kinds_may_differ=frozenset()) -> None:

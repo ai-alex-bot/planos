@@ -10,7 +10,7 @@ from shapely.ops import polylabel, split, unary_union
 
 from planos.config import Config
 from planos.dxf.reader import Drawing, TextItem
-from planos.geometry.texts import Label, classify, is_roofed, is_room_word, merge_multiline, normalize, slugify, unique_slugs
+from planos.geometry.texts import Label, classify, is_outdoor, is_room_word, merge_multiline, normalize, slugify, unique_slugs
 from planos.geometry.walls import WallCandidate
 from planos.issues import IssueCode, Issues
 
@@ -27,7 +27,8 @@ class RoomCandidate:
     slug: str
     net_area_m2: float
     declared_area_m2: float | None
-    is_roofed: bool
+    is_outdoor: bool
+    has_ceiling: bool
     label_point: P
     label_handle: str | None
     other_names: list[str] = field(default_factory=list)
@@ -124,7 +125,8 @@ def detect_rooms(
             slug=slug,
             net_area_m2=area,
             declared_area_m2=areas[0] if areas else None,
-            is_roofed=is_roofed(name),
+            is_outdoor=is_outdoor(name),
+            has_ceiling=_has_ceiling(name, slug, cfg),
             label_point=label_point,
             label_handle=handle,
             other_names=[n.text for n in names[1:]],
@@ -165,6 +167,16 @@ def detect_rooms(
     return rooms
 
 
+def _has_ceiling(name: str | None, slug: str, cfg: Config) -> bool:
+    """Default: indoor rooms have a ceiling, outdoor ones don't; the YAML can override by name or slug."""
+    for key, override in cfg.rooms.items():
+        if override.has_ceiling is None:
+            continue
+        if (name and normalize(key) == name) or key.lower() == slug or slugify(key) == slug:
+            return override.has_ceiling
+    return not is_outdoor(name)
+
+
 def assign_adjacency(walls: list[WallCandidate], rooms: list[RoomCandidate]) -> dict[int, tuple[str | None, str | None]]:
     """For each wall (by id()), the room on its left and right side looking start→end."""
     out: dict[int, tuple[str | None, str | None]] = {}
@@ -199,10 +211,10 @@ def unit_areas(rooms: list[RoomCandidate], closed_mask, cfg: Config, issues: Iss
     tol = cfg.tolerances
     polys = list(getattr(closed_mask, "geoms", [closed_mask]))
     shell = unary_union([Polygon(p.exterior) for p in polys])
-    roofed = unary_union([r.polygon for r in rooms if r.is_roofed])
-    open_ = unary_union([r.polygon for r in rooms if not r.is_roofed])
-    covered = sum(r.net_area_m2 for r in rooms if r.is_roofed)
-    open_area = sum(r.net_area_m2 for r in rooms if not r.is_roofed)
+    roofed = unary_union([r.polygon for r in rooms if not r.is_outdoor])
+    open_ = unary_union([r.polygon for r in rooms if r.is_outdoor])
+    covered = sum(r.net_area_m2 for r in rooms if not r.is_outdoor)
+    open_area = sum(r.net_area_m2 for r in rooms if r.is_outdoor)
     if open_.is_empty:
         gross_geom = shell
     else:

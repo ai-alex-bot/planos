@@ -32,7 +32,7 @@ def test_inspect_clean(clean_dxf: Path, samples_dir: Path) -> None:
     kinds = {b.name: b.kind for b in rep.blocks}
     assert kinds["PUERTA-80"] == "door"
     assert kinds["MAMPARA-200"] == "glass_door"
-    assert kinds["BARANDA-290"] == "window"
+    assert kinds["BARANDA-290"] == "railing"
     assert len(rep.texts) == 9
     assert len(rep.clusters) == 1
     assert rep.clusters[0].bbox_m == pytest.approx(_expected(samples_dir)["unit_bbox_m"], abs=1e-3)

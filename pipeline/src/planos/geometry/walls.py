@@ -38,6 +38,7 @@ class WallCandidate:
     source: str  # line_pair | closed_polyline | hatch | polygonized | structure | opening_fill
     handles: tuple[str, ...] = ()
     joined: list[bool] = field(default_factory=lambda: [False, False])  # start/end extended into a junction
+    height: float | None = None  # None = floor to ceiling; railings are low walls
 
     @property
     def length(self) -> float:
@@ -232,7 +233,7 @@ def _complete_junctions(walls: list[WallCandidate], tol: Tolerances) -> None:
     Only extends, never shortens. Works in place on line-pair walls.
     """
     min_sin = math.sin(math.radians(30))
-    pairs = [w for w in walls if w.source == "line_pair"]
+    pairs = [w for w in walls if w.source in ("line_pair", "railing")]
     new_ends: dict[int, list[P]] = {id(w): [w.start, w.end] for w in pairs}
     for w in pairs:
         for k in (0, 1):
@@ -240,8 +241,8 @@ def _complete_junctions(walls: list[WallCandidate], tol: Tolerances) -> None:
             d = (-w.direction[0], -w.direction[1]) if k == 0 else w.direction
             best_t = 0.0
             for o in pairs:
-                if o is w:
-                    continue
+                if o is w or (o.source == "railing" and w.source != "railing"):
+                    continue  # a full-height wall never grows into a low railing
                 ox, oy = o.direction
                 cross = d[0] * oy - d[1] * ox
                 if abs(cross) < min_sin:
@@ -305,6 +306,24 @@ def _polygon_walls(drawing: Drawing, tol: Tolerances, issues: Issues) -> list[Wa
     return out
 
 
+def _railing_walls(drawing: Drawing, cfg: Config, issues: Issues) -> list[WallCandidate]:
+    """Railings/parapets drawn with lines: low walls (paired faces, or one line → railing_thickness)."""
+    tol = cfg.tolerances
+    segs = clean_segments(drawing.segments.get("railings", []), tol, None)
+    if not segs:
+        return []
+    out = _merge_collinear_walls(_pair_lines(segs, tol), tol)
+    covered = unary_union([w.footprint for w in out]) if out else Polygon()
+    t = cfg.geometry.railing_thickness
+    for s in segs:
+        if covered.is_empty or not _explained(s, covered, tol):
+            out.append(WallCandidate(s.a, s.b, t, _rect(s.a, s.b, t), "railing", s.handles))
+    for w in out:
+        w.source = "railing"
+        w.height = cfg.heights.railing
+    return out
+
+
 # ------------------------------------------------------------------ main
 
 
@@ -326,6 +345,7 @@ def detect_walls(drawing: Drawing, cfg: Config, issues: Issues) -> WallResult:
     tol = cfg.tolerances
     segs = clean_segments(drawing.segments.get("walls", []), tol, issues)
     walls = _merge_collinear_walls(_pair_lines(segs, tol), tol)
+    walls += _railing_walls(drawing, cfg, issues)
     _complete_junctions(walls, tol)
     walls += _polygon_walls(drawing, tol, issues)
 

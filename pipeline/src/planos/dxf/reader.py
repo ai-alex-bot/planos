@@ -33,7 +33,7 @@ CURVED = {"LWPOLYLINE", "POLYLINE", "ARC", "CIRCLE", "ELLIPSE", "SPLINE", "SOLID
 TEXTS = {"TEXT", "MTEXT", "ATTRIB"}
 SKIPPED = {"DIMENSION", "ARC_DIMENSION", "POINT", "ATTDEF", "VIEWPORT", "LEADER", "MLEADER", "MULTILEADER",
            "XLINE", "RAY", "IMAGE", "WIPEOUT", "OLE2FRAME", "TOLERANCE"}
-GEOMETRY_CATEGORIES: set[LayerCategory] = {"walls", "structure", "doors", "windows", "room_separators"}
+GEOMETRY_CATEGORIES: set[LayerCategory] = {"walls", "structure", "railings", "doors", "windows", "room_separators"}
 
 
 @dataclass(frozen=True)

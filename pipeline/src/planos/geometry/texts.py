@@ -34,7 +34,7 @@ ROOM_WORDS_RE = re.compile(
     r"TENDAL|LOGGIA|OFICINA|ESCALERA)",
     re.IGNORECASE,
 )
-UNROOFED_RE = re.compile(r"TERRAZA|BALC[OÓ]N|PATIO|JARD[IÍ]N", re.IGNORECASE)
+OUTDOOR_RE = re.compile(r"TERRAZA|BALC[OÓ]N|PATIO|JARD[IÍ]N", re.IGNORECASE)
 
 
 def normalize(text: str) -> str:
@@ -59,8 +59,9 @@ def is_room_word(text: str) -> bool:
     return bool(ROOM_WORDS_RE.search(normalize(text)))
 
 
-def is_roofed(name: str | None) -> bool:
-    return not (name and UNROOFED_RE.search(name))
+def is_outdoor(name: str | None) -> bool:
+    """Terraces, balconies, patios and gardens (área libre), whether or not they have a slab above."""
+    return bool(name and OUTDOOR_RE.search(name))
 
 
 def slugify(text: str) -> str:

@@ -88,7 +88,8 @@
       "openings": {
         "door": 8,
         "glass_door": 1,
-        "window": 8
+        "window": 7,
+        "railing": 1
       }
     },
     "depto_2d_desordenado.dxf": {
@@ -98,7 +99,8 @@
         "door": 7,
         "passage": 1,
         "glass_door": 1,
-        "window": 8
+        "window": 7,
+        "railing": 1
       }
     },
     "planta_2_unidades.dxf": {

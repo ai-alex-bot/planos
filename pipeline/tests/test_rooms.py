@@ -36,7 +36,8 @@ def test_sample_rooms(samples_dir: Path, expected: dict, sample: str) -> None:
     assert sorted(r.slug for r in rooms) == sorted(
         ["dorm_principal", "dorm_2", "s_h_1", "s_h_2", "hall", "sala_comedor", "cocina", "lavanderia", "terraza"]
     )
-    assert [r.slug for r in rooms if not r.is_roofed] == ["terraza"]
+    assert [r.slug for r in rooms if r.is_outdoor] == ["terraza"]
+    assert [r.slug for r in rooms if not r.has_ceiling] == ["terraza"]
     for code in (IssueCode.ROOM_WITHOUT_NAME, IssueCode.ROOM_MULTIPLE_LABELS, IssueCode.ROOM_AREA_MISMATCH,
                  IssueCode.SUSPICIOUS_AREA):
         assert not issues.by_code(code), code

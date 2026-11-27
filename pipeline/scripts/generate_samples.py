@@ -34,7 +34,7 @@ from shapely.geometry import LineString, Point, Polygon, box
 from shapely.ops import unary_union
 
 P = tuple[float, float]
-OpeningKind = Literal["door", "window", "glass_door", "passage"]
+OpeningKind = Literal["door", "window", "glass_door", "passage", "railing"]
 
 # --------------------------------------------------------------------------------------------
 # Ideal plan model (meters)
@@ -130,8 +130,8 @@ OPENINGS: list[OpeningSpec] = [
     OpeningSpec("window", 2, 1.8, 1.20, messy="lines"),  # cocina (back): lines only in messy
     OpeningSpec("window", 2, 3.6, 0.80),  # lavanderia (back)
     OpeningSpec("window", 1, 3.2, 1.60),  # sala (right facade, y=1.6)
-    # terrace front parapet/railing: block in clean, bare gap in messy
-    OpeningSpec("window", 5, 1.8, 2.90, messy="none", clean_block="BARANDA-290"),
+    # terrace open side: railing (parapet, nothing above). Block in clean, bare gap in messy
+    OpeningSpec("railing", 5, 1.8, 2.90, messy="none", clean_block="BARANDA-290"),
 ]
 
 COLUMNS: list[P] = [(0, 0), (0, 7), (10, 7), (10, -1.6), (6.4, -1.6), (3.6, 0), (5.4, 7), (10, 0)]

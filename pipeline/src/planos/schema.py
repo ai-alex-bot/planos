@@ -46,8 +46,8 @@ class Polygon2(_Model):
         return Polygon(self.exterior, self.holes)
 
 
-WallSource = Literal["line_pair", "closed_polyline", "hatch", "polygonized", "structure", "opening_fill"]
-OpeningKind = Literal["door", "window", "glass_door", "passage"]
+WallSource = Literal["line_pair", "closed_polyline", "hatch", "polygonized", "structure", "railing", "opening_fill"]
+OpeningKind = Literal["door", "window", "glass_door", "passage", "railing"]
 WidthSource = Literal["wall_gap", "block_extent", "inferred_gap"]
 
 
@@ -85,7 +85,8 @@ class Room(_Model):
     polygon: Polygon2
     net_area_m2: float
     declared_area_m2: float | None = None
-    is_roofed: bool = True
+    is_outdoor: bool = False  # terrace, balcony, patio, garden: counts as área libre
+    has_ceiling: bool = True  # 3D only; default = not is_outdoor, overridable in the YAML
     label_point: Point2
     label_handle: str | None = None
 

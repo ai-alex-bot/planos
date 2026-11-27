@@ -14,11 +14,14 @@
 |---|---|---|
 | Área útil | `Room.net_area_m2` | Área interior de un ambiente, medida a cara interna de muros. |
 | Área techada (calculada) | `Metadata.gross_area_m2` | Huella de los ambientes techados **incluyendo muros**. |
-| Área techada de ambientes | `Metadata.covered_area_m2` | Suma de `net_area_m2` de ambientes con `is_roofed = true`. |
-| Área libre | `Metadata.open_area_m2` | Suma de `net_area_m2` de ambientes **sin techar** (terraza, balcón, patio, jardín). |
+| Área techada de ambientes | `Metadata.covered_area_m2` | Suma de `net_area_m2` de ambientes con `is_outdoor = false`. |
+| Área libre | `Metadata.open_area_m2` | Suma de `net_area_m2` de ambientes **exteriores** (`is_outdoor`: terraza, balcón, patio, jardín), tengan o no losa encima. |
 | Área declarada | `Metadata.declared` | Dato oficial de la inmobiliaria (YAML). Si existe, el visor muestra esta y nunca la calculada. |
 
 > Ojo: en Perú "área libre" significa área **sin techar**; nunca se usa para el área interior.
+>
+> `is_outdoor` (exterior, por nombre) y `has_ceiling` (techo en el 3D) son independientes: una terraza
+> bajo la losa del piso de arriba es exterior (área libre, frente con baranda) pero tiene techo.
 
 ## Modelos
 
@@ -49,8 +52,8 @@ class Metadata(BaseModel):
     generated_at: datetime
     config: ResolvedConfig                 # alturas/tolerancias efectivamente usadas
     gross_area_m2: float                   # "área techada (calculada)", incluye muros
-    covered_area_m2: float                 # suma área útil de ambientes techados
-    open_area_m2: float                    # suma área útil de ambientes sin techar
+    covered_area_m2: float                 # suma área útil de ambientes no exteriores
+    open_area_m2: float                    # suma área útil de ambientes exteriores (is_outdoor)
     declared: DeclaredAreas | None
 
 class Wall(BaseModel):
@@ -58,20 +61,20 @@ class Wall(BaseModel):
     start: Point2                          # eje del muro
     end: Point2
     thickness: float
-    height: float
+    height: float                          # floor_to_ceiling; railing = heights.railing
     footprint: Polygon2                    # polígono real en planta
-    source: Literal["line_pair", "closed_polyline", "hatch", "polygonized", "structure", "opening_fill"]
+    source: Literal["line_pair", "closed_polyline", "hatch", "polygonized", "structure", "railing", "opening_fill"]
     adjacent_room_ids: tuple[str | None, str | None]   # (lado izquierdo, lado derecho) mirando start→end
     source_handles: list[str]              # handles DXF para trazabilidad
 
 class Opening(BaseModel):
     id: str                                # "opening_door_01", "opening_window_01", ...
-    kind: Literal["door", "window", "glass_door", "passage"]
+    kind: Literal["door", "window", "glass_door", "passage", "railing"]
     wall_id: str | None                    # None → issue opening_without_wall
     center: Point2
     width: float
-    sill_height: float                     # door/glass_door/passage 0.00; window 1.00
-    head_height: float                     # 2.10 (door_head / window_head)
+    sill_height: float                     # door/glass_door/passage 0.00; window 1.00; railing 1.00
+    head_height: float                     # 2.10 (door_head / window_head); railing = floor_to_ceiling
     rotation_deg: float
     block_name: str | None
     width_source: Literal["wall_gap", "block_extent", "inferred_gap"]
@@ -85,7 +88,8 @@ class Room(BaseModel):
     polygon: Polygon2
     net_area_m2: float                     # "área útil"
     declared_area_m2: float | None         # texto de área encontrado dentro ("12.50 m2", "A=12.50")
-    is_roofed: bool                        # false si name ~ TERRAZA|BALC[OÓ]N|PATIO|JARD[IÍ]N
+    is_outdoor: bool                       # name ~ TERRAZA|BALC[OÓ]N|PATIO|JARD[IÍ]N → área libre
+    has_ceiling: bool                      # solo 3D; por defecto not is_outdoor; YAML rooms: puede forzarlo
     label_point: Point2
     label_handle: str | None
 
@@ -123,7 +127,7 @@ class Space(BaseModel):
 | `unpaired_wall_line` | warning | Línea de muro que no se pudo emparejar ni cerrar. |
 | `open_wall_end` | warning | Extremo de muro suelto que no se pudo resolver. |
 | `opening_without_wall` | warning | Bloque de vano sin muro compatible cerca. |
-| `opening_inferred` | warning | Hueco sin bloque convertido en `window`/`passage`/`glass_door`. |
+| `opening_inferred` | warning | Hueco sin bloque convertido en `window`/`railing`/`passage`. |
 | `room_without_name` | warning | Ambiente sin texto de nombre dentro. |
 | `room_multiple_labels` | warning | Ambiente con 2+ nombres (p. ej. cocina abierta). Sugerir `room_separators`. |
 | `room_area_mismatch` | warning | Área de texto en el ambiente vs. `net_area_m2` difiere más que `area_mismatch_pct`. |
@@ -143,6 +147,7 @@ region: null                 # [xmin, ymin, xmax, ymax] en unidades del DIBUJO
 layers:
   walls: [MUROS, A-WALL]
   structure: [COLUMNAS, PLACAS]
+  railings: [BARANDAS]       # barandas dibujadas con líneas: muros bajos (heights.railing)
   doors: [PUERTAS]
   windows: [VENTANAS]
   room_labels: [TEXTOS, AMBIENTES]
@@ -150,16 +155,20 @@ layers:
   ignore: [COTAS, EJES, MOBILIARIO, MARCO, ROTULO]
 blocks:                      # respaldo por nombre de bloque (glob, sin distinguir mayúsculas)
   doors: ["PUERTA*", "P-*"]
-  windows: ["VENT*", "V-*"]
+  windows: ["VENT*", "V-*", "V[0-9]*"]
   glass_doors: ["MAMP*"]
+  railings: ["BARANDA*", "PARAPETO*"]   # vano tipo baranda: parapeto y nada encima
 declared:
   area_techada_m2: 62.40
   area_libre_m2: 4.10
+rooms:                       # por nombre ("TERRAZA") o slug ("terraza")
+  "TERRAZA": {has_ceiling: true}   # terraza bajo la losa del piso de arriba
 heights:
   floor_to_ceiling: 2.40
   door_head: 2.10
   window_sill: 1.00
   window_head: 2.10
+  railing: 1.00
 tolerances:
   snap: 0.01
   gap_close: 0.03
@@ -176,7 +185,8 @@ tolerances:
   max_room_area: 60.0
   area_mismatch_pct: 5.0
 geometry:
-  ceiling: false
+  ceiling: true               # techo en ambientes con has_ceiling (el visor lo muestra al caminar)
+  railing_thickness: 0.10     # barandas dibujadas con una sola línea
 ```
 
 ### Heurísticas por defecto de capas (regex, sin distinguir mayúsculas)
@@ -185,6 +195,7 @@ geometry:
 |---|---|
 | walls | `MURO(S)?`, `WALL(S)?`, `A-WALL.*`, `TABIQUE(S)?`, `ALBA[ÑN]ILERIA` |
 | structure | `COLUMNA(S)?`, `PLACA(S)?`, `ESTRUCTURA`, `CONCRETO`, `S-COL.*` |
+| railings | `BARANDA(S)?`, `PARAPETO(S)?`, `A-RAIL.*` |
 | doors | `PUERTA(S)?`, `DOOR(S)?`, `A-DOOR.*` |
 | windows | `VENTANA(S)?`, `WINDOW(S)?`, `A-GLAZ.*`, `MAMPARA(S)?` |
 | room_labels | `TEXTO(S)?`, `AMBIENTE(S)?`, `A-AREA-IDEN.*`, `NOMBRES?` |
