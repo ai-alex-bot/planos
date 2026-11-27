@@ -35,11 +35,17 @@ DXF ──► planos.dxf.reader ──► geometry (cleanup → walls → openin
   - **Órbita**: cámara en perspectiva encuadrada al modelo (considera el FOV horizontal en
     vertical); clic/toque en un piso → nombre y área útil.
   - **Planta**: cámara ortográfica cenital con el norte del plano arriba, solo paneo y zoom, etiquetas
-    con nombre y área de cada ambiente (`label_position` de los extras).
+    con nombre y área de cada ambiente (`label_position` de los extras). Plano de corte horizontal
+    global (`renderer.clippingPlanes`) a 1.20 m (`src/config.ts`, `?corte=`): los muros cortados se
+    rellenan con una copia oscura que solo dibuja caras interiores (los muros del GLB son sólidos
+    cerrados, verificado en tests); ventanas y mamparas se dibujan como una línea desde los nodos
+    `opening_*`. El raycaster de three.js ignora el corte, así que los clics descartan intersecciones
+    por encima de él; las copias oscuras, las etiquetas y las líneas no reciben clics. Sin sombras.
   - **Caminata**: ojos a 1.60 m, empieza en el ambiente techado más grande mirando al centro.
     WASD/flechas (Shift corre) en escritorio; **joystick** en pantallas táctiles; arrastrar para
     mirar. Colisión con rayos a 0.30/1.00/1.50 m: los alféizares detienen, las puertas no. Muestra
-    "Estás en …" con el ambiente bajo los pies.
+    "Estás en …" con el ambiente bajo los pies. Muestra los techos (`ceiling_*`, ocultos en los otros
+    modos), que no proyectan sombra ni participan en clics, colisiones o detección del ambiente.
 - Área de la unidad: la declarada si existe; si no, la calculada (de los extras de la escena).
 - Pruebas: `pnpm test` (vitest: lectura de extras, movimiento) y `pnpm smoke` (Playwright con el Edge
   instalado: clic/toque en pisos, los 3 modos, joystick, colisiones, sin errores de consola).

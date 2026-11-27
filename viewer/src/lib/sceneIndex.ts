@@ -1,5 +1,6 @@
 import { Box3, Mesh, Object3D, Vector3 } from "three";
 import { readFloorInfo, type FloorInfo } from "./gltfInfo";
+import { readOpeningInfo, type OpeningInfo } from "./plan";
 import { yawTowards } from "./walk";
 
 export interface FloorEntry {
@@ -9,11 +10,18 @@ export interface FloorEntry {
   anchor: Vector3;
 }
 
+export interface OpeningEntry {
+  node: Object3D;
+  info: OpeningInfo;
+}
+
 export interface SceneIndex {
   center: Vector3;
   size: Vector3;
   walls: Mesh[];
   floors: FloorEntry[];
+  ceilings: Mesh[];
+  openings: OpeningEntry[];
   walkStart: { position: Vector3; yaw: number };
 }
 
@@ -25,10 +33,15 @@ export function indexScene(root: Object3D): SceneIndex {
   const size = box.getSize(new Vector3());
   const walls: Mesh[] = [];
   const floors: FloorEntry[] = [];
+  const ceilings: Mesh[] = [];
+  const openings: OpeningEntry[] = [];
   root.traverse((o) => {
+    const opening = readOpeningInfo(o.userData);
+    if (opening) openings.push({ node: o, info: opening });
     const mesh = o as Mesh;
     if (!mesh.isMesh) return;
     if (mesh.userData?.type === "wall") walls.push(mesh);
+    if (mesh.userData?.type === "ceiling") ceilings.push(mesh);
     const info = readFloorInfo(mesh.userData);
     if (info) {
       const anchor = info.labelPosition
@@ -38,14 +51,14 @@ export function indexScene(root: Object3D): SceneIndex {
     }
   });
 
-  // walking starts in the largest roofed room (usually the living room), looking at the unit center
-  const roofed = floors.filter((f) => f.info.isRoofed);
-  const pool = roofed.length ? roofed : floors;
+  // walking starts in the largest indoor room (usually the living room), looking at the unit center
+  const indoor = floors.filter((f) => !f.info.isOutdoor);
+  const pool = indoor.length ? indoor : floors;
   const start = pool.reduce<FloorEntry | null>((a, b) => (!a || b.info.netAreaM2 > a.info.netAreaM2 ? b : a), null);
   const position = start ? start.anchor.clone() : center.clone();
   const yaw =
     position.distanceTo(new Vector3(center.x, position.y, center.z)) > 0.5
       ? yawTowards(position.x, position.z, center.x, center.z)
       : 0;
-  return { center, size, walls, floors, walkStart: { position, yaw } };
+  return { center, size, walls, floors, ceilings, openings, walkStart: { position, yaw } };
 }

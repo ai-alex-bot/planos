@@ -6,6 +6,7 @@ import type { FloorInfo, UnitInfo } from "../lib/gltfInfo";
 import { readUnitInfo } from "../lib/gltfInfo";
 import { indexScene, type SceneIndex } from "../lib/sceneIndex";
 import type { Vec2 } from "../lib/walk";
+import { planCutHeight } from "../config";
 import type { ViewMode } from "./ModeBar";
 import { Model } from "./Model";
 import { OrbitRig, PlanRig, WalkRig } from "./rigs";
@@ -23,6 +24,7 @@ interface Props {
 
 export function Viewer3D({ url, mode, selectedSlug, joystick, onSelectFloor, onUnitInfo }: Props) {
   const [index, setIndex] = useState<SceneIndex | null>(null);
+  const [cut] = useState(() => planCutHeight());
 
   const handleReady = useCallback(
     (root: Object3D) => {
@@ -33,6 +35,7 @@ export function Viewer3D({ url, mode, selectedSlug, joystick, onSelectFloor, onU
   );
 
   const walking = mode === "walk";
+  const plan = mode === "plan";
   return (
     <Canvas
       className="canvas"
@@ -42,15 +45,17 @@ export function Viewer3D({ url, mode, selectedSlug, joystick, onSelectFloor, onU
     >
       <color attach="background" args={["#f3f1ec"]} />
       <hemisphereLight args={["#ffffff", "#d8d2c4", 0.35]} />
-      <directionalLight position={[6, 12, 4]} intensity={1.2} castShadow shadow-mapSize={[2048, 2048]}>
+      {/* no shadows in plan view: cut-away geometry would still cast them */}
+      <directionalLight position={[6, 12, 4]} intensity={1.2} castShadow={!plan} shadow-mapSize={[2048, 2048]}>
         <orthographicCamera attach="shadow-camera" args={[-10, 10, 10, -10, 0.5, 40]} />
       </directionalLight>
       <Suspense fallback={null}>
         <Environment files={HDRI_URL} environmentIntensity={0.8} />
         <Model
           url={url}
+          mode={mode}
           selectedSlug={walking ? null : selectedSlug}
-          interactive={!walking}
+          cutHeight={plan ? cut : null}
           onSelectFloor={onSelectFloor}
           onReady={handleReady}
         />
@@ -60,7 +65,7 @@ export function Viewer3D({ url, mode, selectedSlug, joystick, onSelectFloor, onU
         <meshStandardMaterial color="#e7e3da" roughness={1} />
       </mesh>
       {index && mode === "orbit" && <OrbitRig index={index} />}
-      {index && mode === "plan" && <PlanRig index={index} floors />}
+      {index && mode === "plan" && <PlanRig index={index} floors cutHeight={cut} />}
       {index && mode === "walk" && <WalkRig index={index} joystick={joystick} onRoom={onSelectFloor} />}
     </Canvas>
   );

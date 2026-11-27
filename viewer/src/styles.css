@@ -284,3 +284,9 @@ body,
   bottom: auto;
   top: calc(env(safe-area-inset-top) + var(--gap) + 72px + 48px);
 }
+
+/* plan labels never take clicks: the floor under them must stay clickable */
+.plan-label-wrap,
+.plan-label-wrap * {
+  pointer-events: none !important;
+}

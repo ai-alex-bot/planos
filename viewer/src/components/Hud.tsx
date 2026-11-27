@@ -60,7 +60,7 @@ export function Hud({ unit, selected, mode, isTouch, fileName, onOpenFile, onClo
           <div className="room-area">
             {formatArea(selected.netAreaM2)} <span className="muted">área útil</span>
           </div>
-          {!selected.isRoofed && <div className="tag">Sin techar</div>}
+          {selected.isOutdoor && <div className="tag">Exterior · área libre</div>}
         </section>
       )}
 

@@ -58,16 +58,51 @@ const mode = async (page, label) => {
   const room = await pickFloor(page, false);
   check(!!room, `desktop orbit: click on floor shows room (${room})`);
 
+  check((await page.evaluate(() => window.__ceilingsVisible)) === 0, "orbit: ceilings hidden");
+
   await mode(page, "Planta");
   const labels = await page.$$eval(".plan-label", (els) => els.map((e) => e.textContent));
   check(labels.length === 9, `plan: ${labels.length} room labels`);
+  check((await page.evaluate(() => window.__planLines)) === 8, `plan: one line per window/glass door (${await page.evaluate(() => window.__planLines)})`);
+  check((await page.evaluate(() => window.__ceilingsVisible)) === 0, "plan: ceilings hidden");
   await page.screenshot({ path: join(out, "desktop-plan.png") });
-  check(!!(await pickFloor(page, false)), "plan: click on a room shows its card");
+  // a click on every floor (at its label: labels let clicks through) shows that room, even under lintels
+  const boxes = await page.$$eval(".plan-label", (els) =>
+    els.map((e) => {
+      const r = e.getBoundingClientRect();
+      return { name: e.querySelector("strong").textContent, x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }),
+  );
+  let ok = 0;
+  const wrong = [];
+  for (const b of boxes) {
+    await page.mouse.click(b.x, b.y);
+    await page.waitForTimeout(120);
+    const el = await page.$(".room .room-name");
+    const got = el ? await el.textContent() : null;
+    if (got === b.name) ok += 1;
+    else wrong.push(`${b.name}→${got}`);
+  }
+  check(ok === boxes.length, `plan: click on each floor shows its room (${ok}/${boxes.length}) ${wrong.join(", ")}`);
 
   await mode(page, "Caminar");
   await page.waitForTimeout(600);
   const chip = await page.textContent(".room-chip").catch(() => null);
   check(!!chip && chip.includes("Estás en"), `walk: shows current room (${chip?.trim()})`);
+  // look up (drag down): the ceiling is there, seen from below
+  await page.mouse.move(640, 300);
+  await page.mouse.down();
+  await page.mouse.move(640, 650, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: join(out, "desktop-walk-up.png") });
+  const view = await page.evaluate(() => window.__walkView);
+  check(!!view?.ceiling, `walk: looking up shows the ceiling (pitch ${view?.pitch?.toFixed(2)})`);
+  await page.mouse.move(640, 650);
+  await page.mouse.down();
+  await page.mouse.move(640, 300, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
   const p0 = await walkPos(page);
   await page.keyboard.down("KeyW");
   await page.waitForTimeout(3000);
@@ -76,6 +111,7 @@ const mode = async (page, label) => {
   const moved = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
   check(moved > 0.5, `walk: W moves the camera (${moved.toFixed(2)} m)`);
   await page.screenshot({ path: join(out, "desktop-walk.png") });
+  check((await page.evaluate(() => window.__ceilingsVisible)) === 8, "walk: ceilings visible (8 indoor rooms)");
 
   // push against walls in every direction for a while: must stay inside the unit (collisions)
   for (const key of ["KeyW", "KeyA", "KeyS", "KeyD"]) {

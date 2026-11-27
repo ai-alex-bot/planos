@@ -1,7 +1,18 @@
-import { Html, OrbitControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
+import { Html, Line, OrbitControls, OrthographicCamera, PerspectiveCamera } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
-import { MOUSE, PerspectiveCamera as PerspectiveCameraImpl, Raycaster, TOUCH, Vector3 } from "three";
+import {
+  Mesh,
+  MOUSE,
+  PerspectiveCamera as PerspectiveCameraImpl,
+  Plane,
+  Raycaster,
+  TOUCH,
+  Vector3,
+  type Intersection,
+} from "three";
+import { PLAN_OPENING_LINE } from "../config";
+import { drawsPlanLine, openingLine } from "../lib/plan";
 import { formatArea, prettyName, type FloorInfo } from "../lib/gltfInfo";
 import type { SceneIndex } from "../lib/sceneIndex";
 import {
@@ -58,7 +69,43 @@ export function OrbitRig({ index }: { index: SceneIndex }) {
 
 // ------------------------------------------------------------------ plan (top view)
 
-export function PlanRig({ index, floors }: { index: SceneIndex; floors: boolean }) {
+const PLAN_LINE_BELOW_CUT = 0.02; // m: lines sit just under the section plane
+
+/** Horizontal section plane for the plan view (global renderer clipping), removed on unmount. */
+function SectionPlane({ height }: { height: number }) {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    gl.clippingPlanes = [new Plane(new Vector3(0, -1, 0), height)]; // keeps y <= height
+    return () => {
+      gl.clippingPlanes = [];
+    };
+  }, [gl, height]);
+  return null;
+}
+
+/** Windows and glass doors as a single line over their gap. */
+function OpeningLines({ index, cutHeight }: { index: SceneIndex; cutHeight: number }) {
+  const lines = useMemo(() => {
+    return index.openings
+      .filter((o) => drawsPlanLine(o.info.kind))
+      .map((o) => {
+        o.node.updateWorldMatrix(true, false);
+        return { id: o.info.id, points: openingLine(o.node.matrixWorld, o.info.width, cutHeight - PLAN_LINE_BELOW_CUT) };
+      });
+  }, [index, cutHeight]);
+  useEffect(() => {
+    if (import.meta.env.DEV) (window as unknown as { __planLines?: number }).__planLines = lines.length;
+  }, [lines]);
+  return (
+    <>
+      {lines.map((l) => (
+        <Line key={l.id} points={l.points} color={PLAN_OPENING_LINE} lineWidth={3} raycast={() => null} />
+      ))}
+    </>
+  );
+}
+
+export function PlanRig({ index, floors, cutHeight }: { index: SceneIndex; floors: boolean; cutHeight: number }) {
   const { width, height } = useThree((s) => s.size);
   const zoom = Math.min(width / (index.size.x * PLAN_MARGIN), height / (index.size.z * PLAN_MARGIN));
   const x = index.center.x;
@@ -77,9 +124,11 @@ export function PlanRig({ index, floors }: { index: SceneIndex; floors: boolean 
         minZoom={zoom * 0.5}
         maxZoom={zoom * 6}
       />
+      <SectionPlane height={cutHeight} />
+      <OpeningLines index={index} cutHeight={cutHeight} />
       {floors &&
         index.floors.map((f) => (
-          <Html key={f.info.slug} position={[f.anchor.x, 0.05, f.anchor.z]} center zIndexRange={[10, 0]}>
+          <Html key={f.info.slug} position={[f.anchor.x, 0.05, f.anchor.z]} center zIndexRange={[10, 0]} pointerEvents="none" wrapperClass="plan-label-wrap">
             <div className="plan-label">
               <strong>{prettyName(f.info.name)}</strong>
               <span>{formatArea(f.info.netAreaM2)}</span>
@@ -214,6 +263,17 @@ export function WalkRig({ index, joystick, onRoom }: WalkProps) {
       if (slug !== lastRoom.current) {
         lastRoom.current = slug;
         onRoom(room);
+      }
+      if (import.meta.env.DEV) {
+        // is the view pointing at a visible ceiling, seen from below (front face)?
+        const dir = c.getWorldDirection(new Vector3());
+        ray.set(c.position, dir);
+        ray.far = 50;
+        const hits: Intersection[] = [];
+        for (const m of index.ceilings) if (m.visible) Mesh.prototype.raycast.call(m, ray, hits);
+        hits.sort((a, b) => a.distance - b.distance);
+        const n = hits[0]?.face?.normal.clone().transformDirection(hits[0].object.matrixWorld);
+        (window as unknown as { __walkView?: object }).__walkView = { ceiling: !!n && n.dot(dir) < 0, pitch: pitch.current };
       }
     }
   });

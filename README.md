@@ -210,6 +210,14 @@ la heurística no reconoce.
      doors: [PUERTAS]
      windows: [VENTANAS, MAMPARAS]
    ```
+   **Barandas y parapetos** (terrazas, balcones): si están dibujados con líneas en una capa propia,
+   decláralos y se modelan como muros bajos de `heights.railing` (1.00 m) que cierran el ambiente
+   (sirve para balcones volados). Con una sola línea se les da `geometry.railing_thickness`.
+   ```yaml
+     railings: [BARANDAS]
+   ```
+   Si la terraza no tiene nada dibujado en su lado abierto, el hueco se detecta solo y, como da a un
+   ambiente exterior, se modela como baranda: parapeto y nada encima.
 5. **Textos de ambientes.** Capas con los nombres ("SALA-COMEDOR", "DORM. 1", "S.H.") y, si las hay,
    las áreas ("12.50 m2", "A=12.50"). Los textos de NPT, cotas y notas se ignoran solos.
    ```yaml
@@ -231,9 +239,11 @@ la heurística no reconoce.
    ```yaml
    blocks:
      doors: ["PUERTA*", "P-*", "P[0-9]*"]
-     windows: ["VENT*", "V-*", "V[0-9]*", "BARANDA*"]
+     windows: ["VENT*", "V-*", "V[0-9]*"]
      glass_doors: ["MAMP*"]          # mampara: alféizar 0.00, dintel 2.10
+     railings: ["BARANDA*", "PARAPETO*"]   # baranda: parapeto de 1.00 m y nada encima
    ```
+   El nombre del bloque manda sobre la capa: una `BARANDA-290` en la capa VENTANAS es baranda.
 9. **Varias unidades en el mismo dibujo.** Copia de `inspect` el bbox del grupo que quieres (está en
    unidades del dibujo) y agrégale un margen:
    ```yaml
@@ -244,20 +254,30 @@ la heurística no reconoce.
     ```yaml
     declared:
       area_techada_m2: 62.40
-      area_libre_m2: 4.10          # área sin techar (terraza, balcón, patio)
+      area_libre_m2: 4.10          # terrazas, balcones, patios, jardines
     ```
-11. **Alturas y tolerancias** solo si el proyecto lo pide:
+    Los ambientes llamados TERRAZA, BALCÓN, PATIO o JARDÍN son **exteriores** (`is_outdoor`):
+    cuentan como área libre y su borde abierto se modela como baranda.
+11. **Techo de los ambientes exteriores.** Por defecto un ambiente exterior no tiene techo en el 3D.
+    En Lima muchas terrazas quedan bajo la losa del piso de arriba: indícalo por nombre (o slug) y el
+    comprador verá la losa encima (la baranda sigue igual y no hay nada entre ella y el techo):
+    ```yaml
+    rooms:
+      "TERRAZA": {has_ceiling: true}
+    ```
+12. **Alturas y tolerancias** solo si el proyecto lo pide:
     ```yaml
     heights:
       floor_to_ceiling: 2.50       # default 2.40
       door_head: 2.10
       window_sill: 1.00
       window_head: 2.10
+      railing: 1.00                # barandas y parapetos
     tolerances:
       wall_thickness_max: 0.45     # muros más gruesos que 0.40 m
       max_room_area: 80            # ambientes grandes que no son "sospechosos"
     geometry:
-      ceiling: true                # generar techo (por defecto no)
+      ceiling: false               # no generar techos (por defecto sí; el visor los muestra al caminar)
     ```
 
 Referencia completa de claves, valores por defecto y heurísticas de nombres de capa:
@@ -281,7 +301,7 @@ ignorarse.
 | `layer_unmapped` | Una capa con geometría no está en ninguna categoría. | Agregarla a `walls`/`structure`/… o a `ignore`. |
 | `multiple_units_detected` | Hay varios grupos de muros desconectados. | Elegir uno con `region` (el aviso trae los bbox). |
 | `unpaired_wall_line` | Una línea de muro no tiene pareja paralela. | Muro más grueso que `wall_thickness_max`, línea suelta o capa equivocada. |
-| `opening_inferred` | Un hueco sin bloque se tomó como ventana (exterior o con líneas) o vano libre (interior). | Verificar el tipo; si es puerta, que el bloque esté en una capa de puertas. |
+| `opening_inferred` | Un hueco sin bloque se tomó como baranda (borde de terraza/balcón), ventana (otro borde exterior o con líneas) o vano libre (interior). | Verificar el tipo; si es puerta, que el bloque esté en una capa de puertas. |
 | `opening_without_wall` | Un bloque de puerta/ventana no está sobre ningún muro. | Bloque mal ubicado o muro en una capa no mapeada. |
 | `room_without_name` | Ambiente sin texto de nombre adentro. | Mapear la capa de textos o pedir que se rotule. |
 | `room_multiple_labels` | Dos nombres en un mismo ambiente. | Falta un muro/vano: usar `room_separators`. |
@@ -305,19 +325,23 @@ pnpm preview      # sirve el build localmente para probarlo
 - `?model=tipologia_A.glb` carga `viewer/public/models/tipologia_A.glb` (copia ahí los GLB de cada
   tipología para una demo).
 - Arrastrar un `.glb` sobre la ventana (escritorio) o usar el botón **Abrir GLB** (celular).
-- `?modo=planta` o `?modo=caminar` abre directamente en ese modo.
+- `?modo=planta` o `?modo=caminar` abre directamente en ese modo; `?corte=1.4` cambia la altura del
+  corte de la planta.
 
 **Modos y controles** (botones abajo; en escritorio también teclas 1, 2, 3)
 
 | Modo | Escritorio | Celular |
 |---|---|---|
 | **Órbita** | Arrastrar para girar, rueda para acercar, clic en un piso → ambiente y área útil. | Un dedo gira, pellizcar acerca, tocar un piso. |
-| **Planta** | Vista cenital con nombre y área de cada ambiente; arrastrar para mover, rueda para acercar. | Un dedo mueve, pellizcar acerca. |
+| **Planta** | Plano cortado a 1.20 m: muros en negro, puertas y vanos como huecos, ventanas y mamparas con una línea azul, barandas como muro bajo; nombre y área de cada ambiente; clic en un ambiente. | Un dedo mueve, pellizcar acerca, tocar un ambiente. |
 | **Caminar** | WASD o flechas (Shift corre), arrastrar para mirar. | Joystick abajo a la izquierda, arrastrar para mirar. |
 
-Al caminar, los ojos están a 1.60 m, los muros y alféizares detienen el paso (las puertas no) y arriba
-se muestra el ambiente actual. El área de la unidad que se muestra es la **declarada** si el YAML la
-trae; si no, la calculada (y lo dice).
+Al caminar, los ojos están a 1.60 m, se ve el techo de los ambientes techados (solo en este modo),
+los muros y alféizares detienen el paso (las puertas no) y arriba se muestra el ambiente actual.
+La altura del corte de la planta se puede cambiar con `?corte=1.4` (entre 0.30 y 2.30 m).
+
+El área de la unidad que se muestra es la **declarada** si el YAML la trae; si no, la calculada (y
+lo dice).
 
 La iluminación usa un HDRI incluido en el repo (`viewer/public/hdri/lebombo_1k.hdr`, CC0 de
 [Poly Haven](https://polyhaven.com/a/lebombo)): el visor no depende de ningún CDN.

@@ -15,7 +15,9 @@ export interface FloorInfo {
   name: string | null;
   slug: string;
   netAreaM2: number;
-  isRoofed: boolean;
+  /** terrace, balcony, patio, garden (área libre) */
+  isOutdoor: boolean;
+  hasCeiling: boolean;
   /** where to place the room label, glTF coordinates (null in GLBs from other tools) */
   labelPosition: [number, number, number] | null;
 }
@@ -55,7 +57,8 @@ export function readFloorInfo(userData: Data | undefined): FloorInfo | null {
     name: str(d.name),
     slug,
     netAreaM2: area,
-    isRoofed: d.is_roofed !== false,
+    isOutdoor: d.is_outdoor === true,
+    hasCeiling: typeof d.has_ceiling === "boolean" ? d.has_ceiling : d.is_outdoor !== true,
     labelPosition: vec3(d.label_position),
   };
 }
